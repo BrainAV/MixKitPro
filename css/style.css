@@ -263,27 +263,52 @@
             transform: rotate(0deg);
         }
 
-        .vu-meter {
+
+        .vu-meter-stereo {
             width: 100%;
             height: 100px;
             background: rgba(0,0,0,0.3);
             border-radius: 10px;
             padding: 10px;
             display: flex;
-            gap: 5px;
-            align-items: flex-end;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
         }
 
-        .vu-bar {
+        .vu-channel {
             flex: 1;
-            background: #333;
-            border-radius: 2px;
-            transition: height 0.1s;
-            min-height: 2px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
         }
 
-        .vu-bar.active {
-            background: linear-gradient(to top, var(--highlight-color), var(--secondary-highlight));
+        .vu-bar-stereo {
+            width: 80%;
+            flex: 1;
+            background: #222;
+            border-radius: 5px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(0,0,0,0.5);
+        }
+
+        .vu-bar-stereo::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: var(--vu-level, 0%);
+            background: linear-gradient(to top, #4ecdc4, #ff6b6b, #f0e68c);
+            transition: height 0.05s linear;
+        }
+
+        .vu-label {
+            font-size: 0.8rem;
+            font-weight: bold;
         }
 
         .spectrum {
