@@ -14,7 +14,6 @@
             <button class="control-btn" onclick="exportSession()">💾 Export</button>
             <button class="control-btn" onclick="document.getElementById('importSession').click()">📁 Import</button>
             <input type="file" id="importSession" accept=".json" style="display:none" onchange="importSession(event)">
-            <button class="control-btn" id="togglePlaylistBtn">🎹 Playlist</button>
         </header>
 
         <main class="main-content">
@@ -45,15 +44,15 @@
                         <button class="control-btn" id="syncA" onclick="syncTempo('A')">🔗 Sync</button>
                         <button class="control-btn" id="keylockA" onclick="toggleKeylock('A')">🔒 Key Lock</button>
                     </div>
-                    <div class="vu-meter-stereo" id="vuMeterA">
-                        <div class="vu-channel">
-                            <div class="vu-bar-stereo" id="vuBarAL"></div>
-                            <div class="vu-label">L</div>
-                        </div>
-                        <div class="vu-channel">
-                            <div class="vu-bar-stereo" id="vuBarAR"></div>
-                            <div class="vu-label">R</div>
-                        </div>
+                    <div class="vu-meter" id="vuMeterA">
+                        <div class="vu-bar"></div>
+                        <div class="vu-bar"></div>
+                        <div class="vu-bar"></div>
+                        <div class="vu-bar"></div>
+                        <div class="vu-bar"></div>
+                        <div class="vu-bar"></div>
+                        <div class="vu-bar"></div>
+                        <div class="vu-bar"></div>
                     </div>
                 </div>
 
@@ -73,9 +72,9 @@
                 </div>
 
                 <div class="slider-container">
-                    <label>Tempo ±16%</label>
-                    <input type="range" class="slider" id="tempoA" min="-16" max="16" value="0" step="0.01" oninput="setTempo('A', this.value)">
-                    <span id="tempoValueA">0.00%</span>
+                    <label>Tempo ±8%</label>
+                    <input type="range" class="slider" id="tempoA" min="-8" max="8" value="0" oninput="setTempo('A', this.value)">
+                    <span id="tempoValueA">0%</span>
                 </div>
 
                 <div class="effects-panel">
@@ -93,6 +92,16 @@
                     </div>
                 </div>
 
+                <div class="vu-meter" id="vuMeterA">
+                    <div class="vu-bar"></div>
+                    <div class="vu-bar"></div>
+                    <div class="vu-bar"></div>
+                    <div class="vu-bar"></div>
+                    <div class="vu-bar"></div>
+                    <div class="vu-bar"></div>
+                    <div class="vu-bar"></div>
+                    <div class="vu-bar"></div>
+                </div>
             </div>
 
             <!-- Mixer -->
@@ -109,17 +118,6 @@
 
                 <div class="spectrum">
                     <canvas class="spectrum-canvas" id="spectrumCanvas"></canvas>
-                </div>
-
-                <div class="vu-meter-stereo" id="vuMeterMaster">
-                    <div class="vu-channel">
-                        <div class="vu-bar-stereo" id="vuBarMasterL"></div>
-                        <div class="vu-label">L</div>
-                    </div>
-                    <div class="vu-channel">
-                        <div class="vu-bar-stereo" id="vuBarMasterR"></div>
-                        <div class="vu-label">R</div>
-                    </div>
                 </div>
 
                 <button class="control-btn" onclick="toggleAutomix()">🤖 Automix</button>
@@ -152,15 +150,15 @@
                         <button class="control-btn" id="syncB" onclick="syncTempo('B')">🔗 Sync</button>
                         <button class="control-btn" id="keylockB" onclick="toggleKeylock('B')">🔒 Key Lock</button>
                     </div>
-                    <div class="vu-meter-stereo" id="vuMeterB">
-                        <div class="vu-channel">
-                            <div class="vu-bar-stereo" id="vuBarBL"></div>
-                            <div class="vu-label">L</div>
-                        </div>
-                        <div class="vu-channel">
-                            <div class="vu-bar-stereo" id="vuBarBR"></div>
-                            <div class="vu-label">R</div>
-                        </div>
+                    <div class="vu-meter" id="vuMeterB">
+                        <div class="vu-bar"></div>
+                        <div class="vu-bar"></div>
+                        <div class="vu-bar"></div>
+                        <div class="vu-bar"></div>
+                        <div class="vu-bar"></div>
+                        <div class="vu-bar"></div>
+                        <div class="vu-bar"></div>
+                        <div class="vu-bar"></div>
                     </div>
                 </div>
 
@@ -180,9 +178,9 @@
                 </div>
 
                 <div class="slider-container">
-                    <label>Tempo ±16%</label>
-                    <input type="range" class="slider" id="tempoB" min="-16" max="16" value="0" step="0.01" oninput="setTempo('B', this.value)">
-                    <span id="tempoValueB">0.00%</span>
+                    <label>Tempo ±8%</label>
+                    <input type="range" class="slider" id="tempoB" min="-8" max="8" value="0" oninput="setTempo('B', this.value)">
+                    <span id="tempoValueB">0%</span>
                 </div>
 
                 <div class="effects-panel">
@@ -199,21 +197,14 @@
                         <label>Filter</label>
                     </div>
                 </div>
-
             </div>
         </main>
 
-        <div class="playlist-container">
-            <div class="playlist" id="playlist">
-                <h3>Playlist</h3>
-                <div id="playlistItems"></div>
-                <div class="playlist-controls">
-                    <button class="control-btn" onclick="document.getElementById('addTracksInput').click()">➕ Add Tracks</button>
-                    <input type="file" id="addTracksInput" multiple accept="audio/*" style="display:none" onchange="addToPlaylist(this.files)">
-                    <button class="control-btn" onclick="document.getElementById('addFolderInput').click()">📂 Add Folder</button>
-                    <input type="file" id="addFolderInput" multiple accept="audio/*" style="display:none" onchange="addToPlaylist(this.files)" webkitdirectory>
-                </div>
-            </div>
+        <div class="playlist" id="playlist">
+            <h3>Playlist</h3>
+            <div id="playlistItems"></div>
+            <button class="control-btn" onclick="document.getElementById('addToPlaylist').click()" style="margin-top: 10px;">➕ Add Tracks</button>
+            <input type="file" id="addToPlaylist" multiple accept="audio/*" style="display:none" onchange="addToPlaylist(this.files)">
         </div>
     </div>
 
@@ -232,14 +223,6 @@
             <div style="margin: 20px 0;">
                 <label>Audio Latency (ms):</label>
                 <input type="number" id="audioLatency" value="20" min="0" max="100" onchange="setAudioLatency(this.value)">
-            </div>
-            <div style="margin: 20px 0;">
-                <label>Tempo Range:</label>
-                <select id="tempoRange" onchange="setTempoRange(this.value)">
-                    <option value="8">±8%</option>
-                    <option value="16" selected>±16%</option>
-                    <option value="50">±50%</option>
-                </select>
             </div>
             <div style="margin: 20px 0;">
                 <label>Theme:</label>
