@@ -29,7 +29,6 @@ class Deck {
                 };
 
                 this.setupAudio();
-                this.setupAnalyser();
             }
 
             setupAudio() {
@@ -65,15 +64,29 @@ class Deck {
                 this.reverbDryGain.connect(this.gainNode);
                 
                 this.gainNode.gain.value = 0.75;
+                
+                // --- Stereo VU Meter Analysers ---
+                this.splitter = this.audioContext.createChannelSplitter(2);
+                this.analyserL = this.audioContext.createAnalyser();
+                this.analyserR = this.audioContext.createAnalyser();
+                this.analyserL.smoothingTimeConstant = 0.8;
+                this.analyserR.smoothingTimeConstant = 0.8;
+                this.analyserL.fftSize = 256;
+                this.analyserR.fftSize = 256;
+                this.vuBufferLength = this.analyserL.fftSize;
+                this.vuDataArrayL = new Float32Array(this.vuBufferLength);
+                this.vuDataArrayR = new Float32Array(this.vuBufferLength);
+                
+                this.gainNode.connect(this.splitter);
+                this.splitter.connect(this.analyserL, 0);
+                this.splitter.connect(this.analyserR, 1);
+                
+                // Connect gain to destination AFTER splitter
                 this.gainNode.connect(this.audioContext.destination);
             }
 
             setupAnalyser() {
-                this.analyser = this.audioContext.createAnalyser();
-                this.analyser.fftSize = 256;
-                this.bufferLength = this.analyser.frequencyBinCount;
-                this.dataArray = new Uint8Array(this.bufferLength);
-                this.gainNode.connect(this.analyser);
+                // This function is now handled by setupAudio
             }
 
             createReverbImpulse() {
@@ -337,17 +350,31 @@ class Deck {
             }
 
             updateVUMeter() {
-                if (!this.analyser) return;
+                if (!this.analyserL || !this.analyserR) return;
 
-                this.analyser.getByteFrequencyData(this.dataArray);
-                const vuMeter = document.getElementById(`vuMeter${this.id}`);
-                const bars = vuMeter.querySelectorAll('.vu-bar');
+                this.analyserL.getFloatTimeDomainData(this.vuDataArrayL);
+                this.analyserR.getFloatTimeDomainData(this.vuDataArrayR);
 
-                for (let i = 0; i < bars.length; i++) {
-                    const value = this.dataArray[i * 4] || 0;
-                    const height = (value / 255) * 100;
-                    bars[i].style.height = `${height}%`;
-                    bars[i].classList.toggle('active', value > 50);
+                let peakL = 0;
+                for (let i = 0; i < this.vuBufferLength; i++) {
+                    const value = Math.abs(this.vuDataArrayL[i]);
+                    if (value > peakL) peakL = value;
+                }
+
+                let peakR = 0;
+                for (let i = 0; i < this.vuBufferLength; i++) {
+                    const value = Math.abs(this.vuDataArrayR[i]);
+                    if (value > peakR) peakR = value;
+                }
+
+                const barL = document.getElementById(`vuBar${this.id}L`);
+                const barR = document.getElementById(`vuBar${this.id}R`);
+
+                if (barL) {
+                    barL.style.setProperty('--vu-level', `${Math.min(peakL * 100, 100)}%`);
+                }
+                if (barR) {
+                    barR.style.setProperty('--vu-level', `${Math.min(peakR * 100, 100)}%`);
                 }
             }
 
