@@ -60,9 +60,9 @@
                 </div>
 
                 <div class="slider-container">
-                    <label>Tempo ±8%</label>
-                    <input type="range" class="slider" id="tempoA" min="-8" max="8" value="0" oninput="setTempo('A', this.value)">
-                    <span id="tempoValueA">0%</span>
+                    <label>Tempo ±16%</label>
+                    <input type="range" class="slider" id="tempoA" min="-16" max="16" value="0" step="0.01" oninput="setTempo('A', this.value)">
+                    <span id="tempoValueA">0.00%</span>
                 </div>
 
                 <div class="effects-panel">
@@ -80,15 +80,15 @@
                     </div>
                 </div>
 
-                <div class="vu-meter" id="vuMeterA">
-                    <div class="vu-bar"></div>
-                    <div class="vu-bar"></div>
-                    <div class="vu-bar"></div>
-                    <div class="vu-bar"></div>
-                    <div class="vu-bar"></div>
-                    <div class="vu-bar"></div>
-                    <div class="vu-bar"></div>
-                    <div class="vu-bar"></div>
+                <div class="vu-meter-stereo" id="vuMeterA">
+                    <div class="vu-channel">
+                        <div class="vu-bar-stereo" id="vuBarAL"></div>
+                        <div class="vu-label">L</div>
+                    </div>
+                    <div class="vu-channel">
+                        <div class="vu-bar-stereo" id="vuBarAR"></div>
+                        <div class="vu-label">R</div>
+                    </div>
                 </div>
             </div>
 
@@ -154,9 +154,9 @@
                 </div>
 
                 <div class="slider-container">
-                    <label>Tempo ±8%</label>
-                    <input type="range" class="slider" id="tempoB" min="-8" max="8" value="0" oninput="setTempo('B', this.value)">
-                    <span id="tempoValueB">0%</span>
+                    <label>Tempo ±16%</label>
+                    <input type="range" class="slider" id="tempoB" min="-16" max="16" value="0" step="0.01" oninput="setTempo('B', this.value)">
+                    <span id="tempoValueB">0.00%</span>
                 </div>
 
                 <div class="effects-panel">
@@ -174,15 +174,15 @@
                     </div>
                 </div>
 
-                <div class="vu-meter" id="vuMeterB">
-                    <div class="vu-bar"></div>
-                    <div class="vu-bar"></div>
-                    <div class="vu-bar"></div>
-                    <div class="vu-bar"></div>
-                    <div class="vu-bar"></div>
-                    <div class="vu-bar"></div>
-                    <div class="vu-bar"></div>
-                    <div class="vu-bar"></div>
+                <div class="vu-meter-stereo" id="vuMeterB">
+                    <div class="vu-channel">
+                        <div class="vu-bar-stereo" id="vuBarBL"></div>
+                        <div class="vu-label">L</div>
+                    </div>
+                    <div class="vu-channel">
+                        <div class="vu-bar-stereo" id="vuBarBR"></div>
+                        <div class="vu-label">R</div>
+                    </div>
                 </div>
             </div>
         </main>
