@@ -502,6 +502,7 @@ class Deck {
         let automixLeadDeck = 'A';
         let playlistIndex = -1;
         let spectrumAnalyser;
+        let masterAnalyserL, masterAnalyserR, masterVuBufferLength, masterVuDataArrayL, masterVuDataArrayR;
 
         // Initialize application
         window.addEventListener('load', async () => {
@@ -535,6 +536,21 @@ class Deck {
                 deckB.splitter.connect(deckB.analyserR, 1);
 
                 masterGain.connect(audioContext.destination);
+
+                // --- Master VU Meter ---
+                const masterSplitter = audioContext.createChannelSplitter(2);
+                masterAnalyserL = audioContext.createAnalyser();
+                masterAnalyserR = audioContext.createAnalyser();
+                masterAnalyserL.smoothingTimeConstant = 0.8;
+                masterAnalyserR.smoothingTimeConstant = 0.8;
+                masterAnalyserL.fftSize = 256;
+                masterAnalyserR.fftSize = 256;
+                masterVuBufferLength = masterAnalyserL.fftSize;
+                masterVuDataArrayL = new Float32Array(masterVuBufferLength);
+                masterVuDataArrayR = new Float32Array(masterVuBufferLength);
+                masterGain.connect(masterSplitter);
+                masterSplitter.connect(masterAnalyserL, 0);
+                masterSplitter.connect(masterAnalyserR, 1);
 
                 setupSpectrum();
                 startUpdateLoop();
@@ -611,12 +627,42 @@ class Deck {
             drawSpectrum();
         }
 
+        function updateMasterVUMeter() {
+            if (!masterAnalyserL || !masterAnalyserR) return;
+
+            masterAnalyserL.getFloatTimeDomainData(masterVuDataArrayL);
+            masterAnalyserR.getFloatTimeDomainData(masterVuDataArrayR);
+
+            let peakL = 0;
+            for (let i = 0; i < masterVuBufferLength; i++) {
+                const value = Math.abs(masterVuDataArrayL[i]);
+                if (value > peakL) peakL = value;
+            }
+
+            let peakR = 0;
+            for (let i = 0; i < masterVuBufferLength; i++) {
+                const value = Math.abs(masterVuDataArrayR[i]);
+                if (value > peakR) peakR = value;
+            }
+
+            const barL = document.getElementById('vuBarMasterL');
+            const barR = document.getElementById('vuBarMasterR');
+
+            if (barL) {
+                barL.style.setProperty('--vu-level', `${Math.min(peakL * 100, 100)}%`);
+            }
+            if (barR) {
+                barR.style.setProperty('--vu-level', `${Math.min(peakR * 100, 100)}%`);
+            }
+        }
+
         function startUpdateLoop() {
             function update() {
                 deckA.updateProgress();
                 deckB.updateProgress();
                 deckA.updateVUMeter();
                 deckB.updateVUMeter();
+                updateMasterVUMeter();
 
                 // Check for automix
                 if (automixEnabled) {
