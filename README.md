@@ -27,7 +27,7 @@ MixKitPro is a feature-rich, lightweight, browser-only DJ toolkit. The applicati
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/your-username/MixKitPro.git
+    git clone https://github.com/jasonbra1n/MixKitPro.git
     ```
 2.  **Open `index.html` in your browser:**
     -   Navigate to the project directory and open the `index.html` file in a modern web browser that supports the Web Audio API (like Chrome, Firefox, or Safari).
