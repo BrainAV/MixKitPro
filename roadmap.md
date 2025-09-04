@@ -5,11 +5,11 @@ This document outlines the planned features, improvements, and bug fixes for the
 ## Immediate Priorities (Q4 2025)
 
 ### 1. Core Functionality Improvements
--   **[ ] Fine-Grained Tempo Control:**
-    -   Update the tempo slider to allow for floating-point values (e.g., `0.01` increments).
-    -   Create options for three tempo ranges (+/- 8, 16, and 50%) for more creative mixing.
+-   **[x] Fine-Grained Tempo Control:**
+    -   The tempo slider now allows for floating-point values (e.g., `0.01` increments).
+    -   Options for three tempo ranges (+/- 8, 16, and 50%) have been implemented, with the default set to +/- 8%.
 
--   **[ ] Fix BPM Detection:**
+-   **[ ] Fix BPM Detection: (CURRENT FOCUS)**
     -   Investigate why `web-audio-beat-detector` is failing or providing inaccurate results.
     -   Check for console errors and debug the `detectBPM` function in `js/main.js`.
     -   If the library is unreliable, research and integrate a more robust alternative.
