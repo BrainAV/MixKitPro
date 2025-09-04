@@ -7,7 +7,7 @@ This document outlines the planned features, improvements, and bug fixes for the
 ### 1. Core Functionality Improvements
 -   **[ ] Fine-Grained Tempo Control:**
     -   Update the tempo slider to allow for floating-point values (e.g., `0.01` increments).
-    -   Increase the tempo range to at least +/- 16% for more creative mixing.
+    -   Create options for three tempo ranges (+/- 8, 16, and 50%) for more creative mixing.
 
 -   **[ ] Fix BPM Detection:**
     -   Investigate why `web-audio-beat-detector` is failing or providing inaccurate results.
