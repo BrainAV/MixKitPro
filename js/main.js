@@ -34,20 +34,37 @@ class Deck {
 
             setupAudio() {
                 this.gainNode = this.audioContext.createGain();
-                this.gainNode.gain.value = 0.75;
+                this.effectsInput = this.audioContext.createGain();
 
-                // Effects chain
-                this.reverbNode = this.audioContext.createConvolver();
-                this.delayNode = this.audioContext.createDelay();
+                // --- Filter Node ---
                 this.filterNode = this.audioContext.createBiquadFilter();
 
-                // Create reverb impulse response
+                // --- Delay Node ---
+                this.delayNode = this.audioContext.createDelay(5.0);
+                this.delayFeedbackGain = this.audioContext.createGain();
+                this.delayNode.connect(this.delayFeedbackGain);
+                this.delayFeedbackGain.connect(this.delayNode);
+
+                // --- Reverb Node (as a send effect) ---
+                this.reverbNode = this.audioContext.createConvolver();
+                this.reverbWetGain = this.audioContext.createGain();
+                this.reverbDryGain = this.audioContext.createGain();
                 this.createReverbImpulse();
 
-                this.delayNode.delayTime.value = 0.3;
-                this.filterNode.frequency.value = 1000;
-                this.filterNode.Q.value = 1;
+                // --- Build static graph ---
+                this.effectsInput.connect(this.filterNode);
+                this.filterNode.connect(this.delayNode);
+                
+                // Reverb is parallel
+                this.delayNode.connect(this.reverbNode);
+                this.reverbNode.connect(this.reverbWetGain);
+                this.reverbWetGain.connect(this.gainNode);
 
+                // Dry path for reverb mix
+                this.delayNode.connect(this.reverbDryGain);
+                this.reverbDryGain.connect(this.gainNode);
+                
+                this.gainNode.gain.value = 0.75;
                 this.gainNode.connect(this.audioContext.destination);
             }
 
@@ -124,9 +141,15 @@ class Deck {
                 document.getElementById(`bpm${this.id}`).textContent = 'BPM: Analyzing...';
 
                 try {
-                    const { bpm } = await webAudioBeatDetector.guess(this.audioBuffer);
-                    if (bpm) {
-                        this.bpm = Math.round(bpm);
+                    const tempoSettings = {
+                        minTempo: 70,
+                        maxTempo: 210,
+                    };
+                    const result = await webAudioBeatDetector.guess(this.audioBuffer, tempoSettings);
+                    console.log('BPM detection result:', result);
+
+                    if (result && result.bpm) {
+                        this.bpm = Math.round(result.bpm);
                         this.originalBpm = this.bpm;
                         document.getElementById(`bpm${this.id}`).textContent = `BPM: ${this.bpm}`;
                     } else {
@@ -193,34 +216,6 @@ class Deck {
                 }
             }
 
-            play(startTimeOverride) {
-                if (!this.audioBuffer) return;
-
-                if (this.audioSource) {
-                    this.audioSource.disconnect();
-                }
-
-                this.audioSource = this.audioContext.createBufferSource();
-                this.audioSource.buffer = this.audioBuffer;
-
-                // Apply tempo change
-                const playbackRate = 1 + (this.tempo / 100);
-                this.audioSource.playbackRate.value = playbackRate;
-
-                this._buildAudioGraph();
-
-                this.audioSource.loop = this.isLooping;
-
-                const startTime = (startTimeOverride !== undefined) ? startTimeOverride : (this.isPaused ? this.pauseTime : 0);
-                this.audioSource.start(0, startTime);
-                this.startTime = this.audioContext.currentTime - startTime;
-
-                this.isPlaying = true;
-                this.isPaused = false;
-                this.pauseTime = startTime;
-
-                document.getElementById(`play${this.id}`).textContent = '⏸️ Pause';
-            }
 
             pause() {
                 if (this.audioSource && this.isPlaying) {
@@ -276,7 +271,7 @@ class Deck {
 
             setTempo(value) {
                 this.tempo = parseFloat(value);
-                document.getElementById(`tempoValue${this.id}`).textContent = `${value}%`;
+                document.getElementById(`tempoValue${this.id}`).textContent = `${this.tempo.toFixed(2)}%`;
 
                 if (this.audioSource && this.isPlaying) {
                     const playbackRate = 1 + (this.tempo / 100);
@@ -356,20 +351,85 @@ class Deck {
                 }
             }
 
+            play(startTimeOverride) {
+                if (!this.audioBuffer) return;
+
+                if (this.audioSource) {
+                    this.audioSource.disconnect();
+                }
+
+                this.audioSource = this.audioContext.createBufferSource();
+                this.audioSource.buffer = this.audioBuffer;
+
+                // Apply tempo change
+                const playbackRate = 1 + (this.tempo / 100);
+                this.audioSource.playbackRate.value = playbackRate;
+
+                this._buildAudioGraph();
+                this.updateEffectValues(); // Set initial effect values
+
+                this.audioSource.loop = this.isLooping;
+
+                const startTime = (startTimeOverride !== undefined) ? startTimeOverride : (this.isPaused ? this.pauseTime : 0);
+                this.audioSource.start(0, startTime);
+                this.startTime = this.audioContext.currentTime - startTime;
+
+                this.isPlaying = true;
+                this.isPaused = false;
+                this.pauseTime = startTime;
+
+                document.getElementById(`play${this.id}`).textContent = '⏸️ Pause';
+            }
+            
             toggleEffect(effect, value) {
                 if (value === undefined) {
                     this.effects[effect].active = !this.effects[effect].active;
                 } else {
                     this.effects[effect].value = value;
                 }
+                
+                this.updateEffectValues();
+                this.updateEffectUI(effect);
+            }
 
-                if (this.isPlaying) {
-                    this.audioSource.disconnect();
-                    this._buildAudioGraph();
+            updateEffectValues() {
+                const now = this.audioContext.currentTime;
+                const rampTime = now + 0.02; // Short ramp to avoid clicks
+
+                // --- Filter ---
+                if (this.effects.filter.active) {
+                    const filterValue = this.effects.filter.value;
+                    const minFreq = 40;
+                    const maxFreq = this.audioContext.sampleRate / 2;
+                    const freq = minFreq * Math.pow(maxFreq / minFreq, filterValue);
+                    this.filterNode.frequency.linearRampToValueAtTime(freq, rampTime);
+                    this.filterNode.Q.linearRampToValueAtTime(filterValue * 5, rampTime);
+                    this.filterNode.gain.linearRampToValueAtTime(1, rampTime); // Ensure filter is 'on'
+                } else {
+                    // Bypass filter by setting it to a neutral state
+                    this.filterNode.frequency.linearRampToValueAtTime(this.audioContext.sampleRate / 2, rampTime);
+                    this.filterNode.Q.linearRampToValueAtTime(1, rampTime);
                 }
 
-                // Update UI based on effect state
-                this.updateEffectUI(effect);
+                // --- Delay ---
+                if (this.effects.delay.active) {
+                    const delayValue = this.effects.delay.value;
+                    this.delayNode.delayTime.linearRampToValueAtTime(delayValue * 2.0, rampTime);
+                    this.delayFeedbackGain.gain.linearRampToValueAtTime(delayValue * 0.8, rampTime);
+                } else {
+                    this.delayNode.delayTime.linearRampToValueAtTime(0, rampTime);
+                    this.delayFeedbackGain.gain.linearRampToValueAtTime(0, rampTime);
+                }
+
+                // --- Reverb ---
+                const reverbValue = this.effects.reverb.value;
+                if (this.effects.reverb.active) {
+                    this.reverbWetGain.gain.linearRampToValueAtTime(reverbValue * 0.8, rampTime); // Mix reverb a bit lower
+                    this.reverbDryGain.gain.linearRampToValueAtTime(1 - reverbValue, rampTime);
+                } else {
+                    this.reverbWetGain.gain.linearRampToValueAtTime(0, rampTime);
+                    this.reverbDryGain.gain.linearRampToValueAtTime(1, rampTime);
+                }
             }
 
             updateEffectUI(effect) {
@@ -377,11 +437,14 @@ class Deck {
                 const value = this.effects[effect].value;
                 const rotation = -135 + (value * 270); // -135 to 135 degrees
                 knob.style.transform = `rotate(${rotation}deg)`;
+                knob.classList.toggle('active', this.effects[effect].active);
             }
 
             _buildAudioGraph() {
-                let currentNode = this.audioSource;
+                this.audioSource.disconnect();
+                this.vocoderNode.disconnect();
 
+                let currentNode = this.audioSource;
                 if (this.keylock) {
                     const playbackRate = 1 + (this.tempo / 100);
                     const pitchFactor = 1 / playbackRate;
@@ -389,28 +452,8 @@ class Deck {
                     currentNode.connect(this.vocoderNode);
                     currentNode = this.vocoderNode;
                 }
-
-                // Connect effects chain
-                if (this.effects.filter.active) {
-                    this.filterNode.frequency.setValueAtTime(this.effects.filter.value * 10000, this.audioContext.currentTime);
-                    currentNode.connect(this.filterNode);
-                    currentNode = this.filterNode;
-                }
-
-                if (this.effects.delay.active) {
-                    this.delayNode.delayTime.setValueAtTime(this.effects.delay.value * 1.0, this.audioContext.currentTime);
-                    currentNode.connect(this.delayNode);
-                    currentNode = this.delayNode;
-                }
-
-                if (this.effects.reverb.active) {
-                    // This is a simplified reverb control - we'll just toggle it on/off
-                    // A real implementation would use a wet/dry mix with a GainNode
-                    currentNode.connect(this.reverbNode);
-                    currentNode = this.reverbNode;
-                }
-
-                currentNode.connect(this.gainNode);
+                
+                currentNode.connect(this.effectsInput);
             }
 
             syncTo(otherDeck) {
