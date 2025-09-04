@@ -29,32 +29,57 @@ class Deck {
                 };
 
                 this.setupAudio();
-                this.setupAnalyser();
             }
 
             setupAudio() {
                 this.gainNode = this.audioContext.createGain();
-                this.gainNode.gain.value = 0.75;
+                this.effectsInput = this.audioContext.createGain();
 
-                // Effects chain
-                this.reverbNode = this.audioContext.createConvolver();
-                this.delayNode = this.audioContext.createDelay();
+                // --- Filter Node ---
                 this.filterNode = this.audioContext.createBiquadFilter();
 
-                // Create reverb impulse response
+                // --- Delay Node ---
+                this.delayNode = this.audioContext.createDelay(5.0);
+                this.delayFeedbackGain = this.audioContext.createGain();
+                this.delayNode.connect(this.delayFeedbackGain);
+                this.delayFeedbackGain.connect(this.delayNode);
+
+                // --- Reverb Node (as a send effect) ---
+                this.reverbNode = this.audioContext.createConvolver();
+                this.reverbWetGain = this.audioContext.createGain();
+                this.reverbDryGain = this.audioContext.createGain();
                 this.createReverbImpulse();
 
-                this.delayNode.delayTime.value = 0.3;
-                this.filterNode.frequency.value = 1000;
-                this.filterNode.Q.value = 1;
+                // --- Build static graph ---
+                this.effectsInput.connect(this.filterNode);
+                this.filterNode.connect(this.delayNode);
+                
+                // Reverb is parallel
+                this.delayNode.connect(this.reverbNode);
+                this.reverbNode.connect(this.reverbWetGain);
+                this.reverbWetGain.connect(this.gainNode);
+
+                // Dry path for reverb mix
+                this.delayNode.connect(this.reverbDryGain);
+                this.reverbDryGain.connect(this.gainNode);
+                
+                this.gainNode.gain.value = 0.75;
+                
+                // --- Stereo VU Meter Analysers ---
+                this.splitter = this.audioContext.createChannelSplitter(2);
+                this.analyserL = this.audioContext.createAnalyser();
+                this.analyserR = this.audioContext.createAnalyser();
+                this.analyserL.smoothingTimeConstant = 0.8;
+                this.analyserR.smoothingTimeConstant = 0.8;
+                this.analyserL.fftSize = 256;
+                this.analyserR.fftSize = 256;
+                this.vuBufferLength = this.analyserL.fftSize;
+                this.vuDataArrayL = new Float32Array(this.vuBufferLength);
+                this.vuDataArrayR = new Float32Array(this.vuBufferLength);
             }
 
             setupAnalyser() {
-                this.analyser = this.audioContext.createAnalyser();
-                this.analyser.fftSize = 256;
-                this.bufferLength = this.analyser.frequencyBinCount;
-                this.dataArray = new Uint8Array(this.bufferLength);
-                this.gainNode.connect(this.analyser);
+                // This function is now handled by setupAudio
             }
 
             createReverbImpulse() {
@@ -197,41 +222,6 @@ class Deck {
                 }
             }
 
-            play(startTimeOverride) {
-                if (!this.audioBuffer) return;
-
-                if (this.audioSource) {
-                    this.audioSource.disconnect();
-                }
-
-                this.audioSource = this.audioContext.createBufferSource();
-                this.audioSource.buffer = this.audioBuffer;
-
-                // Apply tempo change
-                const playbackRate = 1 + (this.tempo / 100);
-                this.audioSource.playbackRate.value = playbackRate;
-
-                this._buildAudioGraph();
-
-                this.audioSource.loop = this.isLooping;
-
-                const startTime = (startTimeOverride !== undefined) ? startTimeOverride : (this.isPaused ? this.pauseTime : 0);
-                this.audioSource.start(0, startTime);
-                this.startTime = this.audioContext.currentTime - startTime;
-
-                this.isPlaying = true;
-                this.isPaused = false;
-                this.pauseTime = startTime;
-
-                document.getElementById(`play${this.id}`).textContent = '⏸️ Pause';
-
-                this.audioSource.onended = () => {
-                    // Only call stop if it was playing and not manually stopped
-                    if (this.isPlaying && !this.isLooping) {
-                        this.stop();
-                    }
-                };
-            }
 
             pause() {
                 if (this.audioSource && this.isPlaying) {
@@ -246,7 +236,6 @@ class Deck {
 
             stop() {
                 if (this.audioSource) {
-                    this.audioSource.onended = null; // Remove listener to prevent stop() being called twice
                     this.audioSource.stop();
                     this.audioSource = null;
                 }
@@ -268,6 +257,7 @@ class Deck {
                 if (this.audioSource) {
                     this.audioSource.loop = this.isLooping;
                 }
+                saveSettings();
             }
 
             toggleKeylock() {
@@ -280,15 +270,17 @@ class Deck {
                     this.pause();
                     this.play();
                 }
+                saveSettings();
             }
 
             setVolume(value) {
                 this.gainNode.gain.value = value / 100;
+                saveSettings();
             }
 
             setTempo(value) {
                 this.tempo = parseFloat(value);
-                document.getElementById(`tempoValue${this.id}`).textContent = `${value}%`;
+                document.getElementById(`tempoValue${this.id}`).textContent = `${this.tempo.toFixed(2)}%`;
 
                 if (this.audioSource && this.isPlaying) {
                     const playbackRate = 1 + (this.tempo / 100);
@@ -302,6 +294,7 @@ class Deck {
                         document.getElementById(`bpm${this.id}`).textContent = `BPM: ${this.bpm}`;
                     }
                 }
+                saveSettings();
             }
 
             seek(percentage) {
@@ -354,34 +347,114 @@ class Deck {
             }
 
             updateVUMeter() {
-                if (!this.analyser) return;
+                if (!this.analyserL || !this.analyserR) return;
 
-                this.analyser.getByteFrequencyData(this.dataArray);
-                const vuMeter = document.getElementById(`vuMeter${this.id}`);
-                const bars = vuMeter.querySelectorAll('.vu-bar');
+                this.analyserL.getFloatTimeDomainData(this.vuDataArrayL);
+                this.analyserR.getFloatTimeDomainData(this.vuDataArrayR);
 
-                for (let i = 0; i < bars.length; i++) {
-                    const value = this.dataArray[i * 4] || 0;
-                    const height = (value / 255) * 100;
-                    bars[i].style.height = `${height}%`;
-                    bars[i].classList.toggle('active', value > 50);
+                let peakL = 0;
+                for (let i = 0; i < this.vuBufferLength; i++) {
+                    const value = Math.abs(this.vuDataArrayL[i]);
+                    if (value > peakL) peakL = value;
+                }
+
+                let peakR = 0;
+                for (let i = 0; i < this.vuBufferLength; i++) {
+                    const value = Math.abs(this.vuDataArrayR[i]);
+                    if (value > peakR) peakR = value;
+                }
+
+                const barL = document.getElementById(`vuBar${this.id}L`);
+                const barR = document.getElementById(`vuBar${this.id}R`);
+
+                if (barL) {
+                    barL.style.setProperty('--vu-level', `${Math.min(peakL * 100, 100)}%`);
+                }
+                if (barR) {
+                    barR.style.setProperty('--vu-level', `${Math.min(peakR * 100, 100)}%`);
                 }
             }
 
+            play(startTimeOverride) {
+                if (!this.audioBuffer) return;
+
+                if (this.audioSource) {
+                    this.audioSource.disconnect();
+                }
+
+                this.audioSource = this.audioContext.createBufferSource();
+                this.audioSource.buffer = this.audioBuffer;
+
+                // Apply tempo change
+                const playbackRate = 1 + (this.tempo / 100);
+                this.audioSource.playbackRate.value = playbackRate;
+
+                this._buildAudioGraph();
+                this.updateEffectValues(); // Set initial effect values
+
+                this.audioSource.loop = this.isLooping;
+
+                const startTime = (startTimeOverride !== undefined) ? startTimeOverride : (this.isPaused ? this.pauseTime : 0);
+                this.audioSource.start(0, startTime);
+                this.startTime = this.audioContext.currentTime - startTime;
+
+                this.isPlaying = true;
+                this.isPaused = false;
+                this.pauseTime = startTime;
+
+                document.getElementById(`play${this.id}`).textContent = '⏸️ Pause';
+            }
+            
             toggleEffect(effect, value) {
                 if (value === undefined) {
                     this.effects[effect].active = !this.effects[effect].active;
                 } else {
                     this.effects[effect].value = value;
                 }
+                
+                this.updateEffectValues();
+                this.updateEffectUI(effect);
+                saveSettings();
+            }
 
-                if (this.isPlaying) {
-                    this.audioSource.disconnect();
-                    this._buildAudioGraph();
+            updateEffectValues() {
+                const now = this.audioContext.currentTime;
+                const rampTime = now + 0.02; // Short ramp to avoid clicks
+
+                // --- Filter ---
+                if (this.effects.filter.active) {
+                    const filterValue = this.effects.filter.value;
+                    const minFreq = 40;
+                    const maxFreq = this.audioContext.sampleRate / 2;
+                    const freq = minFreq * Math.pow(maxFreq / minFreq, filterValue);
+                    this.filterNode.frequency.linearRampToValueAtTime(freq, rampTime);
+                    this.filterNode.Q.linearRampToValueAtTime(filterValue * 5, rampTime);
+                    this.filterNode.gain.linearRampToValueAtTime(1, rampTime); // Ensure filter is 'on'
+                } else {
+                    // Bypass filter by setting it to a neutral state
+                    this.filterNode.frequency.linearRampToValueAtTime(this.audioContext.sampleRate / 2, rampTime);
+                    this.filterNode.Q.linearRampToValueAtTime(1, rampTime);
                 }
 
-                // Update UI based on effect state
-                this.updateEffectUI(effect);
+                // --- Delay ---
+                if (this.effects.delay.active) {
+                    const delayValue = this.effects.delay.value;
+                    this.delayNode.delayTime.linearRampToValueAtTime(delayValue * 2.0, rampTime);
+                    this.delayFeedbackGain.gain.linearRampToValueAtTime(delayValue * 0.8, rampTime);
+                } else {
+                    this.delayNode.delayTime.linearRampToValueAtTime(0, rampTime);
+                    this.delayFeedbackGain.gain.linearRampToValueAtTime(0, rampTime);
+                }
+
+                // --- Reverb ---
+                const reverbValue = this.effects.reverb.value;
+                if (this.effects.reverb.active) {
+                    this.reverbWetGain.gain.linearRampToValueAtTime(reverbValue * 0.8, rampTime); // Mix reverb a bit lower
+                    this.reverbDryGain.gain.linearRampToValueAtTime(1 - reverbValue, rampTime);
+                } else {
+                    this.reverbWetGain.gain.linearRampToValueAtTime(0, rampTime);
+                    this.reverbDryGain.gain.linearRampToValueAtTime(1, rampTime);
+                }
             }
 
             updateEffectUI(effect) {
@@ -389,11 +462,14 @@ class Deck {
                 const value = this.effects[effect].value;
                 const rotation = -135 + (value * 270); // -135 to 135 degrees
                 knob.style.transform = `rotate(${rotation}deg)`;
+                knob.classList.toggle('active', this.effects[effect].active);
             }
 
             _buildAudioGraph() {
-                let currentNode = this.audioSource;
+                this.audioSource.disconnect();
+                this.vocoderNode.disconnect();
 
+                let currentNode = this.audioSource;
                 if (this.keylock) {
                     const playbackRate = 1 + (this.tempo / 100);
                     const pitchFactor = 1 / playbackRate;
@@ -401,28 +477,8 @@ class Deck {
                     currentNode.connect(this.vocoderNode);
                     currentNode = this.vocoderNode;
                 }
-
-                // Connect effects chain
-                if (this.effects.filter.active) {
-                    this.filterNode.frequency.setValueAtTime(this.effects.filter.value * 10000, this.audioContext.currentTime);
-                    currentNode.connect(this.filterNode);
-                    currentNode = this.filterNode;
-                }
-
-                if (this.effects.delay.active) {
-                    this.delayNode.delayTime.setValueAtTime(this.effects.delay.value * 1.0, this.audioContext.currentTime);
-                    currentNode.connect(this.delayNode);
-                    currentNode = this.delayNode;
-                }
-
-                if (this.effects.reverb.active) {
-                    // This is a simplified reverb control - we'll just toggle it on/off
-                    // A real implementation would use a wet/dry mix with a GainNode
-                    currentNode.connect(this.reverbNode);
-                    currentNode = this.reverbNode;
-                }
-
-                currentNode.connect(this.gainNode);
+                
+                currentNode.connect(this.effectsInput);
             }
 
             syncTo(otherDeck) {
@@ -440,11 +496,13 @@ class Deck {
         let audioContext;
         let crossfaderValue = 50;
         let crossfaderCurve = 'logarithmic';
+        let tempoRange = 16;
         let playlist = [];
         let automixEnabled = false;
         let automixLeadDeck = 'A';
         let playlistIndex = -1;
         let spectrumAnalyser;
+        let masterAnalyserL, masterAnalyserR, masterVuBufferLength, masterVuDataArrayL, masterVuDataArrayR;
 
         // Initialize application
         window.addEventListener('load', async () => {
@@ -466,10 +524,33 @@ class Deck {
                 masterGain = audioContext.createGain();
                 masterGain.gain.value = 0.75;
 
-                // Connect decks to master gain
+                // Connect decks to master gain and their respective VU meters
                 deckA.gainNode.connect(masterGain);
+                deckA.gainNode.connect(deckA.splitter);
+                deckA.splitter.connect(deckA.analyserL, 0);
+                deckA.splitter.connect(deckA.analyserR, 1);
+
                 deckB.gainNode.connect(masterGain);
+                deckB.gainNode.connect(deckB.splitter);
+                deckB.splitter.connect(deckB.analyserL, 0);
+                deckB.splitter.connect(deckB.analyserR, 1);
+
                 masterGain.connect(audioContext.destination);
+
+                // --- Master VU Meter ---
+                const masterSplitter = audioContext.createChannelSplitter(2);
+                masterAnalyserL = audioContext.createAnalyser();
+                masterAnalyserR = audioContext.createAnalyser();
+                masterAnalyserL.smoothingTimeConstant = 0.8;
+                masterAnalyserR.smoothingTimeConstant = 0.8;
+                masterAnalyserL.fftSize = 256;
+                masterAnalyserR.fftSize = 256;
+                masterVuBufferLength = masterAnalyserL.fftSize;
+                masterVuDataArrayL = new Float32Array(masterVuBufferLength);
+                masterVuDataArrayR = new Float32Array(masterVuBufferLength);
+                masterGain.connect(masterSplitter);
+                masterSplitter.connect(masterAnalyserL, 0);
+                masterSplitter.connect(masterAnalyserR, 1);
 
                 setupSpectrum();
                 startUpdateLoop();
@@ -495,7 +576,12 @@ class Deck {
                     });
                 });
 
+                document.getElementById('togglePlaylistBtn').addEventListener('click', togglePlaylist);
+                setupDragAndDrop();
+
                 console.log('DJ Toolkit initialized successfully');
+                
+                loadSettings();
             } catch (error) {
                 console.error('Error initializing DJ Toolkit:', error);
             }
@@ -541,12 +627,42 @@ class Deck {
             drawSpectrum();
         }
 
+        function updateMasterVUMeter() {
+            if (!masterAnalyserL || !masterAnalyserR) return;
+
+            masterAnalyserL.getFloatTimeDomainData(masterVuDataArrayL);
+            masterAnalyserR.getFloatTimeDomainData(masterVuDataArrayR);
+
+            let peakL = 0;
+            for (let i = 0; i < masterVuBufferLength; i++) {
+                const value = Math.abs(masterVuDataArrayL[i]);
+                if (value > peakL) peakL = value;
+            }
+
+            let peakR = 0;
+            for (let i = 0; i < masterVuBufferLength; i++) {
+                const value = Math.abs(masterVuDataArrayR[i]);
+                if (value > peakR) peakR = value;
+            }
+
+            const barL = document.getElementById('vuBarMasterL');
+            const barR = document.getElementById('vuBarMasterR');
+
+            if (barL) {
+                barL.style.setProperty('--vu-level', `${Math.min(peakL * 100, 100)}%`);
+            }
+            if (barR) {
+                barR.style.setProperty('--vu-level', `${Math.min(peakR * 100, 100)}%`);
+            }
+        }
+
         function startUpdateLoop() {
             function update() {
                 deckA.updateProgress();
                 deckB.updateProgress();
                 deckA.updateVUMeter();
                 deckB.updateVUMeter();
+                updateMasterVUMeter();
 
                 // Check for automix
                 if (automixEnabled) {
@@ -611,6 +727,7 @@ class Deck {
 
         function setMasterVolume(value) {
             masterGain.gain.value = value / 100;
+            saveSettings();
         }
 
         function setCrossfader(value) {
@@ -637,6 +754,7 @@ class Deck {
 
             deckA.gainNode.gain.value = leftGain * (document.getElementById('volumeA').value / 100);
             deckB.gainNode.gain.value = rightGain * (document.getElementById('volumeB').value / 100);
+            saveSettings();
         }
 
         function seek(deckId, event) {
@@ -804,7 +922,12 @@ class Deck {
                 const div = document.createElement('div');
                 div.className = 'playlist-item';
                 div.textContent = item.name;
-                div.onclick = () => loadPlaylistItem(index);
+                div.draggable = true;
+                div.dataset.index = index;
+                
+                // Add click listener separately to avoid conflicts with drag events
+                div.addEventListener('click', () => loadPlaylistItem(index));
+
                 container.appendChild(div);
             });
         }
@@ -832,6 +955,7 @@ class Deck {
             console.log('Crossfader curve set to:', curve);
             // Re-apply the current crossfader value with the new curve
             setCrossfader(document.getElementById('crossfader').value);
+            saveSettings();
         }
 
         function setAudioLatency(latency) {
@@ -839,9 +963,33 @@ class Deck {
             console.log('Audio latency set to:', latency, 'ms');
         }
 
+        function setTempoRange(range) {
+            tempoRange = parseInt(range, 10);
+            
+            const decks = ['A', 'B'];
+            decks.forEach(deckId => {
+                const tempoSlider = document.getElementById(`tempo${deckId}`);
+                const tempoLabel = tempoSlider.previousElementSibling;
+                
+                tempoSlider.min = -tempoRange;
+                tempoSlider.max = tempoRange;
+                
+                if (tempoRange > 20) {
+                    tempoSlider.step = 0.1;
+                } else {
+                    tempoSlider.step = 0.01;
+                }
+                
+                tempoLabel.textContent = `Tempo ±${tempoRange}%`;
+            });
+
+            saveSettings();
+        }
+
         function setTheme(theme) {
             document.body.className = `theme-${theme}`;
             console.log('Theme set to:', theme);
+            saveSettings();
         }
 
         // Session management
@@ -927,6 +1075,158 @@ class Deck {
                 };
                 reader.readAsText(file);
             }
+        }
+
+        function saveSettings() {
+            if (!deckA || !deckB) return; // Don't save if decks aren't initialized
+
+            const settings = {
+                deckA: {
+                    volume: document.getElementById('volumeA').value,
+                    tempo: document.getElementById('tempoA').value,
+                    isLooping: deckA.isLooping,
+                    keylock: deckA.keylock,
+                    effects: deckA.effects
+                },
+                deckB: {
+                    volume: document.getElementById('volumeB').value,
+                    tempo: document.getElementById('tempoB').value,
+                    isLooping: deckB.isLooping,
+                    keylock: deckB.keylock,
+                    effects: deckB.effects
+                },
+                masterVolume: document.getElementById('masterVolume').value,
+                crossfader: document.getElementById('crossfader').value,
+                crossfaderCurve: document.getElementById('crossfaderCurve').value,
+                theme: document.getElementById('theme').value,
+                tempoRange: tempoRange,
+                playlistCollapsed: document.querySelector('.playlist-container').classList.contains('collapsed')
+            };
+            localStorage.setItem('djToolkitSettings', JSON.stringify(settings));
+        }
+
+        function loadSettings() {
+            const settings = JSON.parse(localStorage.getItem('djToolkitSettings'));
+            if (!settings) return;
+
+            // Restore Mixer
+            setMasterVolume(settings.masterVolume);
+            document.getElementById('masterVolume').value = settings.masterVolume;
+            setCrossfader(settings.crossfader);
+            document.getElementById('crossfader').value = settings.crossfader;
+
+            // Restore Global Settings
+            setCrossfaderCurve(settings.crossfaderCurve);
+            document.getElementById('crossfaderCurve').value = settings.crossfaderCurve;
+            setTheme(settings.theme);
+            document.getElementById('theme').value = settings.theme;
+            if(settings.tempoRange) {
+                setTempoRange(settings.tempoRange);
+                document.getElementById('tempoRange').value = settings.tempoRange;
+            }
+
+            if (settings.playlistCollapsed) {
+                document.querySelector('.playlist-container').classList.add('collapsed');
+            }
+
+            // Restore Deck A
+            if (settings.deckA && deckA) {
+                setVolume('A', settings.deckA.volume);
+                document.getElementById('volumeA').value = settings.deckA.volume;
+                setTempo('A', settings.deckA.tempo);
+                document.getElementById('tempoA').value = settings.deckA.tempo;
+                if (deckA.isLooping !== settings.deckA.isLooping) toggleLoop('A');
+                if (deckA.keylock !== settings.deckA.keylock) toggleKeylock('A');
+                deckA.effects = settings.deckA.effects;
+                deckA.updateEffectValues();
+                Object.keys(deckA.effects).forEach(effect => deckA.updateEffectUI(effect));
+            }
+
+            // Restore Deck B
+            if (settings.deckB && deckB) {
+                setVolume('B', settings.deckB.volume);
+                document.getElementById('volumeB').value = settings.deckB.volume;
+                setTempo('B', settings.deckB.tempo);
+                document.getElementById('tempoB').value = settings.deckB.tempo;
+                if (deckB.isLooping !== settings.deckB.isLooping) toggleLoop('B');
+                if (deckB.keylock !== settings.deckB.keylock) toggleKeylock('B');
+                deckB.effects = settings.deckB.effects;
+                deckB.updateEffectValues();
+                Object.keys(deckB.effects).forEach(effect => deckB.updateEffectUI(effect));
+            }
+        }
+
+        function togglePlaylist() {
+            const container = document.querySelector('.playlist-container');
+            container.classList.toggle('collapsed');
+            saveSettings();
+        }
+
+        let draggedIndex = null;
+
+        function setupDragAndDrop() {
+            const container = document.getElementById('playlistItems');
+
+            container.addEventListener('dragstart', (e) => {
+                if (e.target.classList.contains('playlist-item')) {
+                    draggedIndex = parseInt(e.target.dataset.index, 10);
+                    e.target.classList.add('dragging');
+                }
+            });
+
+            container.addEventListener('dragend', (e) => {
+                if (e.target.classList.contains('playlist-item')) {
+                    e.target.classList.remove('dragging');
+                    draggedIndex = null;
+                }
+            });
+
+            container.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const target = e.target.closest('.playlist-item');
+                if (target) {
+                    const rect = target.getBoundingClientRect();
+                    const offset = e.clientY - rect.top - (rect.height / 2);
+                    if (offset < 0) {
+                        target.classList.add('drag-over-top');
+                        target.classList.remove('drag-over-bottom');
+                    } else {
+                        target.classList.add('drag-over-bottom');
+                        target.classList.remove('drag-over-top');
+                    }
+                }
+            });
+
+            container.addEventListener('dragleave', (e) => {
+                const target = e.target.closest('.playlist-item');
+                if (target) {
+                    target.classList.remove('drag-over-top', 'drag-over-bottom');
+                }
+            });
+
+            container.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const target = e.target.closest('.playlist-item');
+                if (target && draggedIndex !== null) {
+                    target.classList.remove('drag-over-top', 'drag-over-bottom');
+                    const targetIndex = parseInt(target.dataset.index, 10);
+                    
+                    const rect = target.getBoundingClientRect();
+                    const offset = e.clientY - rect.top - (rect.height / 2);
+                    const insertBefore = offset < 0;
+
+                    // Reorder playlist array
+                    const [draggedItem] = playlist.splice(draggedIndex, 1);
+                    
+                    if (insertBefore) {
+                        playlist.splice(targetIndex, 0, draggedItem);
+                    } else {
+                        playlist.splice(targetIndex + 1, 0, draggedItem);
+                    }
+
+                    updatePlaylistUI();
+                }
+            });
         }
 
         // Click outside modal to close
