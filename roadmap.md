@@ -2,7 +2,7 @@
 
 This document outlines the planned features, improvements, and bug fixes for the MixKitPro Web DJ Player.
 
-## Immediate Priorities (Q4 2023)
+## Immediate Priorities (Q4 2025)
 
 ### 1. Core Functionality Improvements
 -   **[ ] Fine-Grained Tempo Control:**
@@ -40,7 +40,7 @@ This document outlines the planned features, improvements, and bug fixes for the
 -   **[ ] Session Management Improvements:**
     -   Explore ways to re-link local audio files when importing a session file to provide a more seamless experience.
 
-## Future Goals (2024 and beyond)
+## Future Goals (2025 and beyond)
 
 -   **[ ] Advanced Playlist Features:**
     -   "Automix" mode with configurable crossfade durations and strategies.
