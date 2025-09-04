@@ -27,7 +27,7 @@ class Deck {
                     artist: '',
                     albumArt: null
                 };
-                
+
                 this.setupAudio();
                 this.setupAnalyser();
             }
@@ -35,19 +35,19 @@ class Deck {
             setupAudio() {
                 this.gainNode = this.audioContext.createGain();
                 this.gainNode.gain.value = 0.75;
-                
+
                 // Effects chain
                 this.reverbNode = this.audioContext.createConvolver();
                 this.delayNode = this.audioContext.createDelay();
                 this.filterNode = this.audioContext.createBiquadFilter();
-                
+
                 // Create reverb impulse response
                 this.createReverbImpulse();
-                
+
                 this.delayNode.delayTime.value = 0.3;
                 this.filterNode.frequency.value = 1000;
                 this.filterNode.Q.value = 1;
-                
+
                 this.gainNode.connect(this.audioContext.destination);
             }
 
@@ -62,14 +62,14 @@ class Deck {
             createReverbImpulse() {
                 const length = this.audioContext.sampleRate * 2;
                 const impulse = this.audioContext.createBuffer(2, length, this.audioContext.sampleRate);
-                
+
                 for (let channel = 0; channel < 2; channel++) {
                     const channelData = impulse.getChannelData(channel);
                     for (let i = 0; i < length; i++) {
                         channelData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2);
                     }
                 }
-                
+
                 this.reverbNode.buffer = impulse;
             }
 
@@ -78,16 +78,16 @@ class Deck {
                     const arrayBuffer = await file.arrayBuffer();
                     this.audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
                     this.duration = this.audioBuffer.duration;
-                    
+
                     // Extract metadata
                     this.extractMetadata(file);
-                    
+
                     // Detect BPM
                     await this.detectBPM();
-                    
-                    // Generate waveform
-                    this.generateWaveform();
-                    
+
+                    // Defer waveform generation to ensure canvas is rendered
+                    requestAnimationFrame(() => this.generateWaveform());
+
                     this.updateUI();
                 } catch (error) {
                     console.error('Error loading audio:', error);
@@ -100,13 +100,13 @@ class Deck {
                     onSuccess: (tag) => {
                         this.trackInfo.title = tag.tags.title || file.name;
                         this.trackInfo.artist = tag.tags.artist || 'Unknown Artist';
-                        
+
                         if (tag.tags.picture) {
                             const { data, format } = tag.tags.picture;
                             const base64String = data.reduce((acc, byte) => acc + String.fromCharCode(byte), '');
                             this.trackInfo.albumArt = `data:${format};base64,${btoa(base64String)}`;
                         }
-                        
+
                         this.updateTrackInfo();
                     },
                     onError: (error) => {
@@ -125,70 +125,100 @@ class Deck {
 
                 try {
                     const { bpm } = await webAudioBeatDetector.guess(this.audioBuffer);
-                    this.bpm = Math.round(bpm);
-                    this.originalBpm = this.bpm;
-                    document.getElementById(`bpm${this.id}`).textContent = `BPM: ${this.bpm}`;
+                    if (bpm) {
+                        this.bpm = Math.round(bpm);
+                        this.originalBpm = this.bpm;
+                        document.getElementById(`bpm${this.id}`).textContent = `BPM: ${this.bpm}`;
+                    } else {
+                        throw new Error("BPM detection did not return a valid result.");
+                    }
                 } catch (err) {
                     console.error('BPM detection failed:', err);
                     document.getElementById(`bpm${this.id}`).textContent = 'BPM: --';
-                    // Fallback to a default
-                    this.bpm = 120;
-                    this.originalBpm = 120;
+                    this.bpm = 0;
+                    this.originalBpm = 0;
                 }
             }
 
             generateWaveform() {
                 const canvas = document.getElementById(`waveform${this.id}`);
+                if (!canvas) return;
                 const ctx = canvas.getContext('2d');
-                const width = canvas.width = canvas.offsetWidth;
-                const height = canvas.height = canvas.offsetHeight;
-                
-                if (!this.audioBuffer) return;
-                
+
+                const width = canvas.offsetWidth;
+                const height = canvas.offsetHeight;
+                canvas.width = width;
+                canvas.height = height;
+
+                if (!this.audioBuffer) {
+                    ctx.clearRect(0, 0, width, height);
+                    return;
+                }
+
                 const channelData = this.audioBuffer.getChannelData(0);
-                const samples = width;
-                const blockSize = Math.floor(channelData.length / samples);
-                
+                const numSamples = channelData.length;
+                const numPixels = width;
+
+                const style = getComputedStyle(document.body);
+                const primaryColor = style.getPropertyValue('--highlight-color').trim() || '#4ecdc4';
                 ctx.clearRect(0, 0, width, height);
-                ctx.fillStyle = '#4ecdc4';
-                
-                for (let i = 0; i < samples; i++) {
-                    let sum = 0;
-                    for (let j = 0; j < blockSize; j++) {
-                        sum += Math.abs(channelData[i * blockSize + j]);
+                ctx.fillStyle = primaryColor;
+
+                const samplesPerPixel = Math.floor(numSamples / numPixels);
+
+                if (samplesPerPixel < 1) {
+                    // "Stretch" the waveform if there are more pixels than samples
+                    const pixelsPerSample = numPixels / numSamples;
+                    for (let i = 0; i < numSamples; i++) {
+                        const amplitude = Math.abs(channelData[i]);
+                        const barHeight = Math.min(amplitude * height * 2.5, height);
+                        const x = i * pixelsPerSample;
+                        ctx.fillRect(x, (height - barHeight) / 2, pixelsPerSample, barHeight);
                     }
-                    const amplitude = sum / blockSize;
-                    const barHeight = amplitude * height;
-                    
-                    ctx.fillRect(i * (width / samples), (height - barHeight) / 2, width / samples - 1, barHeight);
+                } else {
+                    // "Compress" the waveform if there are more samples than pixels
+                    const blockSize = samplesPerPixel;
+                    for (let i = 0; i < numPixels; i++) {
+                        let sum = 0;
+                        for (let j = 0; j < blockSize; j++) {
+                            const sampleIndex = i * blockSize + j;
+                            if (sampleIndex < numSamples) {
+                                sum += Math.abs(channelData[sampleIndex]);
+                            }
+                        }
+                        const amplitude = sum / blockSize;
+                        const barHeight = Math.min(amplitude * height * 2.5, height);
+                        ctx.fillRect(i, (height - barHeight) / 2, 1, barHeight);
+                    }
                 }
             }
 
-            play() {
+            play(startTimeOverride) {
                 if (!this.audioBuffer) return;
-                
+
                 if (this.audioSource) {
                     this.audioSource.disconnect();
                 }
-                
+
                 this.audioSource = this.audioContext.createBufferSource();
                 this.audioSource.buffer = this.audioBuffer;
-                
+
                 // Apply tempo change
                 const playbackRate = 1 + (this.tempo / 100);
                 this.audioSource.playbackRate.value = playbackRate;
 
                 this._buildAudioGraph();
-                
+
                 this.audioSource.loop = this.isLooping;
-                
-                const startTime = this.isPaused ? this.pauseTime : 0;
+
+                const startTime = (startTimeOverride !== undefined) ? startTimeOverride : (this.isPaused ? this.pauseTime : 0);
                 this.audioSource.start(0, startTime);
                 this.startTime = this.audioContext.currentTime - startTime;
-                
+
                 this.isPlaying = true;
                 this.isPaused = false;
-                
+                this.pauseTime = startTime;
+
                 document.getElementById(`play${this.id}`).textContent = '⏸️ Pause';
             }
 
@@ -198,7 +228,7 @@ class Deck {
                     this.pauseTime = this.audioContext.currentTime - this.startTime;
                     this.isPlaying = false;
                     this.isPaused = true;
-                    
+
                     document.getElementById(`play${this.id}`).textContent = '▶️ Play';
                 }
             }
@@ -208,12 +238,12 @@ class Deck {
                     this.audioSource.stop();
                     this.audioSource = null;
                 }
-                
+
                 this.isPlaying = false;
                 this.isPaused = false;
                 this.pauseTime = 0;
                 this.currentTime = 0;
-                
+
                 document.getElementById(`play${this.id}`).textContent = '▶️ Play';
                 this.updateProgress();
             }
@@ -222,7 +252,7 @@ class Deck {
                 this.isLooping = !this.isLooping;
                 const btn = document.getElementById(`loop${this.id}`);
                 btn.classList.toggle('active', this.isLooping);
-                
+
                 if (this.audioSource) {
                     this.audioSource.loop = this.isLooping;
                 }
@@ -247,11 +277,11 @@ class Deck {
             setTempo(value) {
                 this.tempo = parseFloat(value);
                 document.getElementById(`tempoValue${this.id}`).textContent = `${value}%`;
-                
+
                 if (this.audioSource && this.isPlaying) {
                     const playbackRate = 1 + (this.tempo / 100);
                     this.audioSource.playbackRate.value = playbackRate;
-                    
+
                     if (this.keylock) {
                         const pitchFactor = 1 / playbackRate;
                         this.vocoderNode.parameters.get('pitchFactor').setValueAtTime(pitchFactor, this.audioContext.currentTime);
@@ -264,16 +294,16 @@ class Deck {
 
             seek(percentage) {
                 if (!this.audioBuffer) return;
-                
+
                 const seekTime = this.duration * percentage;
-                this.pauseTime = seekTime;
-                
+
                 if (this.isPlaying) {
-                    this.pause();
-                    this.play();
+                    this.audioSource.stop();
+                    this.play(seekTime);
+                } else {
+                    this.pauseTime = seekTime;
+                    this.updateProgress();
                 }
-                
-                this.updateProgress();
             }
 
             getCurrentTime() {
@@ -286,21 +316,21 @@ class Deck {
             updateProgress() {
                 this.currentTime = this.getCurrentTime();
                 const percentage = (this.currentTime / this.duration) * 100;
-                
+
                 document.getElementById(`progressBar${this.id}`).style.width = `${Math.min(percentage, 100)}%`;
-                
+
                 const currentMin = Math.floor(this.currentTime / 60);
                 const currentSec = Math.floor(this.currentTime % 60).toString().padStart(2, '0');
                 const totalMin = Math.floor(this.duration / 60);
                 const totalSec = Math.floor(this.duration % 60).toString().padStart(2, '0');
-                
+
                 document.getElementById(`time${this.id}`).textContent = `${currentMin}:${currentSec} / ${totalMin}:${totalSec}`;
             }
 
             updateTrackInfo() {
                 document.getElementById(`title${this.id}`).textContent = this.trackInfo.title;
                 document.getElementById(`artist${this.id}`).textContent = this.trackInfo.artist;
-                
+
                 if (this.trackInfo.albumArt) {
                     document.getElementById(`albumArt${this.id}`).src = this.trackInfo.albumArt;
                 }
@@ -313,11 +343,11 @@ class Deck {
 
             updateVUMeter() {
                 if (!this.analyser) return;
-                
+
                 this.analyser.getByteFrequencyData(this.dataArray);
                 const vuMeter = document.getElementById(`vuMeter${this.id}`);
                 const bars = vuMeter.querySelectorAll('.vu-bar');
-                
+
                 for (let i = 0; i < bars.length; i++) {
                     const value = this.dataArray[i * 4] || 0;
                     const height = (value / 255) * 100;
@@ -366,13 +396,13 @@ class Deck {
                     currentNode.connect(this.filterNode);
                     currentNode = this.filterNode;
                 }
-                
+
                 if (this.effects.delay.active) {
                     this.delayNode.delayTime.setValueAtTime(this.effects.delay.value * 1.0, this.audioContext.currentTime);
                     currentNode.connect(this.delayNode);
                     currentNode = this.delayNode;
                 }
-                
+
                 if (this.effects.reverb.active) {
                     // This is a simplified reverb control - we'll just toggle it on/off
                     // A real implementation would use a wet/dry mix with a GainNode
@@ -417,24 +447,45 @@ class Deck {
                     console.error('Error loading phase vocoder module', e);
                     alert('Could not load audio processing module. Key lock will not be available.');
                 }
-                
+
                 deckA = new Deck('A', audioContext);
                 deckB = new Deck('B', audioContext);
-                
+
                 masterGain = audioContext.createGain();
                 masterGain.gain.value = 0.75;
-                
+
                 // Connect decks to master gain
                 deckA.gainNode.disconnect();
                 deckB.gainNode.disconnect();
-                
+
                 deckA.gainNode.connect(masterGain);
                 deckB.gainNode.connect(masterGain);
                 masterGain.connect(audioContext.destination);
-                
+
                 setupSpectrum();
                 startUpdateLoop();
-                
+
+                // Add tooltip listeners
+                document.querySelectorAll('.progress-container').forEach(container => {
+                    const deckId = container.id.includes('A') ? 'A' : 'B';
+                    const tooltip = document.getElementById(`seekTooltip${deckId}`);
+
+                    container.addEventListener('mousemove', (event) => {
+                        const deck = deckId === 'A' ? deckA : deckB;
+                        if (!deck.audioBuffer) return;
+
+                        const rect = container.getBoundingClientRect();
+                        const percentage = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+                        const seekTime = deck.duration * percentage;
+
+                        const minutes = Math.floor(seekTime / 60);
+                        const seconds = Math.floor(seekTime % 60).toString().padStart(2, '0');
+                        tooltip.textContent = `${minutes}:${seconds}`;
+
+                        tooltip.style.left = `${event.clientX - rect.left}px`;
+                    });
+                });
+
                 console.log('DJ Toolkit initialized successfully');
             } catch (error) {
                 console.error('Error initializing DJ Toolkit:', error);
@@ -445,39 +496,39 @@ class Deck {
             spectrumAnalyser = audioContext.createAnalyser();
             spectrumAnalyser.fftSize = 256;
             masterGain.connect(spectrumAnalyser);
-            
+
             const canvas = document.getElementById('spectrumCanvas');
             const ctx = canvas.getContext('2d');
-            
+
             function drawSpectrum() {
                 const width = canvas.width = canvas.offsetWidth;
                 const height = canvas.height = canvas.offsetHeight;
-                
+
                 const bufferLength = spectrumAnalyser.frequencyBinCount;
                 const dataArray = new Uint8Array(bufferLength);
                 spectrumAnalyser.getByteFrequencyData(dataArray);
-                
+
                 ctx.clearRect(0, 0, width, height);
-                
+
                 const barWidth = width / bufferLength;
                 let x = 0;
-                
+
                 for (let i = 0; i < bufferLength; i++) {
                     const barHeight = (dataArray[i] / 255) * height;
-                    
+
                     const r = Math.floor(78 + (dataArray[i] / 255) * 177);
                     const g = Math.floor(205 - (dataArray[i] / 255) * 50);
                     const b = Math.floor(196 - (dataArray[i] / 255) * 50);
-                    
+
                     ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
                     ctx.fillRect(x, height - barHeight, barWidth, barHeight);
-                    
+
                     x += barWidth;
                 }
-                
+
                 requestAnimationFrame(drawSpectrum);
             }
-            
+
             drawSpectrum();
         }
 
@@ -487,12 +538,12 @@ class Deck {
                 deckB.updateProgress();
                 deckA.updateVUMeter();
                 deckB.updateVUMeter();
-                
+
                 // Check for automix
                 if (automixEnabled) {
                     checkAutomix();
                 }
-                
+
                 requestAnimationFrame(update);
             }
             update();
@@ -503,7 +554,7 @@ class Deck {
             if (audioContext.state === 'suspended') {
                 audioContext.resume();
             }
-            
+
             if (file) {
                 const deck = deckId === 'A' ? deckA : deckB;
                 deck.loadAudio(file);
@@ -512,11 +563,11 @@ class Deck {
 
         function togglePlay(deckId) {
             const deck = deckId === 'A' ? deckA : deckB;
-            
+
             if (audioContext.state === 'suspended') {
                 audioContext.resume();
             }
-            
+
             if (deck.isPlaying) {
                 deck.pause();
             } else {
@@ -574,7 +625,7 @@ class Deck {
                     rightGain = Math.sin(x * Math.PI / 2);
                     break;
             }
-            
+
             deckA.gainNode.gain.value = leftGain * (document.getElementById('volumeA').value / 100);
             deckB.gainNode.gain.value = rightGain * (document.getElementById('volumeB').value / 100);
         }
@@ -606,13 +657,13 @@ class Deck {
         function startKnobTurn(event, deckId, effect) {
             event.preventDefault();
             const deck = deckId === 'A' ? deckA : deckB;
-            
+
             activeKnob.deck = deck;
             activeKnob.effect = effect;
             activeKnob.element = event.target;
             activeKnob.initialY = event.clientY;
             activeKnob.initialValue = deck.effects[effect].value;
-            
+
             // Toggle active state on simple click without drag
             if (event.detail === 1) {
                 const wasActive = deck.effects[effect].active;
@@ -682,7 +733,7 @@ class Deck {
             if (leadDeck.isPlaying && remainingTime < 10 && nextDeck.audioBuffer && !nextDeck.isPlaying) {
                 nextDeck.play();
             }
-            
+
             // Crossfade logic
             if (leadDeck.isPlaying && nextDeck.isPlaying && remainingTime < 10) {
                 const fadeProgress = (10 - remainingTime) / 10; // 0 to 1
@@ -717,7 +768,7 @@ class Deck {
         function dropHandler(event, deckId) {
             event.preventDefault();
             event.target.closest('.drop-zone').classList.remove('drag-over');
-            
+
             const files = event.dataTransfer.files;
             if (files.length > 0) {
                 loadTrack(deckId, files[0]);
@@ -739,7 +790,7 @@ class Deck {
         function updatePlaylistUI() {
             const container = document.getElementById('playlistItems');
             container.innerHTML = '';
-            
+
             playlist.forEach((item, index) => {
                 const div = document.createElement('div');
                 div.className = 'playlist-item';
@@ -807,7 +858,7 @@ class Deck {
                 crossfader: document.getElementById('crossfader').value,
                 playlist: playlist.map(item => ({ name: item.name }))
             };
-            
+
             const blob = new Blob([JSON.stringify(session, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -824,7 +875,7 @@ class Deck {
                 reader.onload = (e) => {
                     try {
                         const session = JSON.parse(e.target.result);
-                        
+
                         // Restore settings
                         document.getElementById('volumeA').value = session.deckA.volume;
                         document.getElementById('volumeB').value = session.deckB.volume;
@@ -832,7 +883,7 @@ class Deck {
                         document.getElementById('tempoB').value = session.deckB.tempo;
                         document.getElementById('masterVolume').value = session.masterVolume;
                         document.getElementById('crossfader').value = session.crossfader;
-                        
+
                         setVolume('A', session.deckA.volume);
                         setVolume('B', session.deckB.volume);
                         setTempo('A', session.deckA.tempo);
@@ -859,7 +910,7 @@ class Deck {
                         // Restore playlist
                         playlist = session.playlist.map(item => ({ name: item.name, file: null, loaded: false }));
                         updatePlaylistUI();
-                        
+
                         alert('Session loaded successfully! Please re-load audio files for the playlist.');
                     } catch (error) {
                         alert('Error loading session file.');

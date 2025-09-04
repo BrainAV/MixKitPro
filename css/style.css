@@ -157,6 +157,27 @@
             overflow: hidden;
         }
 
+        .seek-tooltip {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .progress-container:hover .seek-tooltip {
+            opacity: 1;
+        }
+
         .progress-bar {
             height: 100%;
             background: linear-gradient(90deg, var(--highlight-color), var(--secondary-highlight));
@@ -381,16 +402,16 @@
                 grid-template-columns: 1fr;
                 grid-template-rows: 1fr auto 1fr;
             }
-            
+
             .mixer {
                 order: 2;
             }
-            
+
             .crossfader {
                 transform: none;
                 width: 200px;
             }
-            
+
             .header h1 {
                 font-size: 1.5rem;
             }
@@ -483,7 +504,7 @@
         body.theme-classic .deck-header {
             color: var(--highlight-color);
         }
-        
+
         body.theme-classic .slider::-webkit-slider-thumb {
             background: var(--highlight-color);
             box-shadow: none;
