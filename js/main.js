@@ -76,13 +76,6 @@ class Deck {
                 this.vuBufferLength = this.analyserL.fftSize;
                 this.vuDataArrayL = new Float32Array(this.vuBufferLength);
                 this.vuDataArrayR = new Float32Array(this.vuBufferLength);
-                
-                this.gainNode.connect(this.splitter);
-                this.splitter.connect(this.analyserL, 0);
-                this.splitter.connect(this.analyserR, 1);
-                
-                // Connect gain to destination AFTER splitter
-                this.gainNode.connect(this.audioContext.destination);
             }
 
             setupAnalyser() {
@@ -530,12 +523,17 @@ class Deck {
                 masterGain = audioContext.createGain();
                 masterGain.gain.value = 0.75;
 
-                // Connect decks to master gain
-                deckA.gainNode.disconnect();
-                deckB.gainNode.disconnect();
-
+                // Connect decks to master gain and their respective VU meters
                 deckA.gainNode.connect(masterGain);
+                deckA.gainNode.connect(deckA.splitter);
+                deckA.splitter.connect(deckA.analyserL, 0);
+                deckA.splitter.connect(deckA.analyserR, 1);
+
                 deckB.gainNode.connect(masterGain);
+                deckB.gainNode.connect(deckB.splitter);
+                deckB.splitter.connect(deckB.analyserL, 0);
+                deckB.splitter.connect(deckB.analyserR, 1);
+
                 masterGain.connect(audioContext.destination);
 
                 setupSpectrum();
