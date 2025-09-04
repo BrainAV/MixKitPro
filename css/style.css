@@ -148,6 +148,21 @@
             box-shadow: 0 0 15px var(--highlight-color);
         }
 
+        .controls-vu-container {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .controls-vu-container .controls {
+            flex: 1;
+        }
+
+        .controls-vu-container .vu-meter-stereo {
+            flex: 0 0 100px; /* Don't grow, don't shrink, base width 100px */
+            height: 60px;
+        }
+
         .progress-container {
             background: rgba(0,0,0,0.3);
             height: 40px;
