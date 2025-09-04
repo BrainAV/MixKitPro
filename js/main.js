@@ -496,7 +496,7 @@ class Deck {
         let audioContext;
         let crossfaderValue = 50;
         let crossfaderCurve = 'logarithmic';
-        let tempoRange = 16;
+        let tempoRange = 8;
         let playlist = [];
         let automixEnabled = false;
         let automixLeadDeck = 'A';
