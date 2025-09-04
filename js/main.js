@@ -264,6 +264,7 @@ class Deck {
                 if (this.audioSource) {
                     this.audioSource.loop = this.isLooping;
                 }
+                saveSettings();
             }
 
             toggleKeylock() {
@@ -276,10 +277,12 @@ class Deck {
                     this.pause();
                     this.play();
                 }
+                saveSettings();
             }
 
             setVolume(value) {
                 this.gainNode.gain.value = value / 100;
+                saveSettings();
             }
 
             setTempo(value) {
@@ -298,6 +301,7 @@ class Deck {
                         document.getElementById(`bpm${this.id}`).textContent = `BPM: ${this.bpm}`;
                     }
                 }
+                saveSettings();
             }
 
             seek(percentage) {
@@ -417,6 +421,7 @@ class Deck {
                 
                 this.updateEffectValues();
                 this.updateEffectUI(effect);
+                saveSettings();
             }
 
             updateEffectValues() {
@@ -498,6 +503,7 @@ class Deck {
         let audioContext;
         let crossfaderValue = 50;
         let crossfaderCurve = 'logarithmic';
+        let tempoRange = 16;
         let playlist = [];
         let automixEnabled = false;
         let automixLeadDeck = 'A';
@@ -556,7 +562,12 @@ class Deck {
                     });
                 });
 
+                document.getElementById('togglePlaylistBtn').addEventListener('click', togglePlaylist);
+                setupDragAndDrop();
+
                 console.log('DJ Toolkit initialized successfully');
+                
+                loadSettings();
             } catch (error) {
                 console.error('Error initializing DJ Toolkit:', error);
             }
@@ -672,6 +683,7 @@ class Deck {
 
         function setMasterVolume(value) {
             masterGain.gain.value = value / 100;
+            saveSettings();
         }
 
         function setCrossfader(value) {
@@ -698,6 +710,7 @@ class Deck {
 
             deckA.gainNode.gain.value = leftGain * (document.getElementById('volumeA').value / 100);
             deckB.gainNode.gain.value = rightGain * (document.getElementById('volumeB').value / 100);
+            saveSettings();
         }
 
         function seek(deckId, event) {
@@ -865,7 +878,12 @@ class Deck {
                 const div = document.createElement('div');
                 div.className = 'playlist-item';
                 div.textContent = item.name;
-                div.onclick = () => loadPlaylistItem(index);
+                div.draggable = true;
+                div.dataset.index = index;
+                
+                // Add click listener separately to avoid conflicts with drag events
+                div.addEventListener('click', () => loadPlaylistItem(index));
+
                 container.appendChild(div);
             });
         }
@@ -893,6 +911,7 @@ class Deck {
             console.log('Crossfader curve set to:', curve);
             // Re-apply the current crossfader value with the new curve
             setCrossfader(document.getElementById('crossfader').value);
+            saveSettings();
         }
 
         function setAudioLatency(latency) {
@@ -900,9 +919,33 @@ class Deck {
             console.log('Audio latency set to:', latency, 'ms');
         }
 
+        function setTempoRange(range) {
+            tempoRange = parseInt(range, 10);
+            
+            const decks = ['A', 'B'];
+            decks.forEach(deckId => {
+                const tempoSlider = document.getElementById(`tempo${deckId}`);
+                const tempoLabel = tempoSlider.previousElementSibling;
+                
+                tempoSlider.min = -tempoRange;
+                tempoSlider.max = tempoRange;
+                
+                if (tempoRange > 20) {
+                    tempoSlider.step = 0.1;
+                } else {
+                    tempoSlider.step = 0.01;
+                }
+                
+                tempoLabel.textContent = `Tempo ±${tempoRange}%`;
+            });
+
+            saveSettings();
+        }
+
         function setTheme(theme) {
             document.body.className = `theme-${theme}`;
             console.log('Theme set to:', theme);
+            saveSettings();
         }
 
         // Session management
@@ -988,6 +1031,158 @@ class Deck {
                 };
                 reader.readAsText(file);
             }
+        }
+
+        function saveSettings() {
+            if (!deckA || !deckB) return; // Don't save if decks aren't initialized
+
+            const settings = {
+                deckA: {
+                    volume: document.getElementById('volumeA').value,
+                    tempo: document.getElementById('tempoA').value,
+                    isLooping: deckA.isLooping,
+                    keylock: deckA.keylock,
+                    effects: deckA.effects
+                },
+                deckB: {
+                    volume: document.getElementById('volumeB').value,
+                    tempo: document.getElementById('tempoB').value,
+                    isLooping: deckB.isLooping,
+                    keylock: deckB.keylock,
+                    effects: deckB.effects
+                },
+                masterVolume: document.getElementById('masterVolume').value,
+                crossfader: document.getElementById('crossfader').value,
+                crossfaderCurve: document.getElementById('crossfaderCurve').value,
+                theme: document.getElementById('theme').value,
+                tempoRange: tempoRange,
+                playlistCollapsed: document.querySelector('.playlist-container').classList.contains('collapsed')
+            };
+            localStorage.setItem('djToolkitSettings', JSON.stringify(settings));
+        }
+
+        function loadSettings() {
+            const settings = JSON.parse(localStorage.getItem('djToolkitSettings'));
+            if (!settings) return;
+
+            // Restore Mixer
+            setMasterVolume(settings.masterVolume);
+            document.getElementById('masterVolume').value = settings.masterVolume;
+            setCrossfader(settings.crossfader);
+            document.getElementById('crossfader').value = settings.crossfader;
+
+            // Restore Global Settings
+            setCrossfaderCurve(settings.crossfaderCurve);
+            document.getElementById('crossfaderCurve').value = settings.crossfaderCurve;
+            setTheme(settings.theme);
+            document.getElementById('theme').value = settings.theme;
+            if(settings.tempoRange) {
+                setTempoRange(settings.tempoRange);
+                document.getElementById('tempoRange').value = settings.tempoRange;
+            }
+
+            if (settings.playlistCollapsed) {
+                document.querySelector('.playlist-container').classList.add('collapsed');
+            }
+
+            // Restore Deck A
+            if (settings.deckA && deckA) {
+                setVolume('A', settings.deckA.volume);
+                document.getElementById('volumeA').value = settings.deckA.volume;
+                setTempo('A', settings.deckA.tempo);
+                document.getElementById('tempoA').value = settings.deckA.tempo;
+                if (deckA.isLooping !== settings.deckA.isLooping) toggleLoop('A');
+                if (deckA.keylock !== settings.deckA.keylock) toggleKeylock('A');
+                deckA.effects = settings.deckA.effects;
+                deckA.updateEffectValues();
+                Object.keys(deckA.effects).forEach(effect => deckA.updateEffectUI(effect));
+            }
+
+            // Restore Deck B
+            if (settings.deckB && deckB) {
+                setVolume('B', settings.deckB.volume);
+                document.getElementById('volumeB').value = settings.deckB.volume;
+                setTempo('B', settings.deckB.tempo);
+                document.getElementById('tempoB').value = settings.deckB.tempo;
+                if (deckB.isLooping !== settings.deckB.isLooping) toggleLoop('B');
+                if (deckB.keylock !== settings.deckB.keylock) toggleKeylock('B');
+                deckB.effects = settings.deckB.effects;
+                deckB.updateEffectValues();
+                Object.keys(deckB.effects).forEach(effect => deckB.updateEffectUI(effect));
+            }
+        }
+
+        function togglePlaylist() {
+            const container = document.querySelector('.playlist-container');
+            container.classList.toggle('collapsed');
+            saveSettings();
+        }
+
+        let draggedIndex = null;
+
+        function setupDragAndDrop() {
+            const container = document.getElementById('playlistItems');
+
+            container.addEventListener('dragstart', (e) => {
+                if (e.target.classList.contains('playlist-item')) {
+                    draggedIndex = parseInt(e.target.dataset.index, 10);
+                    e.target.classList.add('dragging');
+                }
+            });
+
+            container.addEventListener('dragend', (e) => {
+                if (e.target.classList.contains('playlist-item')) {
+                    e.target.classList.remove('dragging');
+                    draggedIndex = null;
+                }
+            });
+
+            container.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const target = e.target.closest('.playlist-item');
+                if (target) {
+                    const rect = target.getBoundingClientRect();
+                    const offset = e.clientY - rect.top - (rect.height / 2);
+                    if (offset < 0) {
+                        target.classList.add('drag-over-top');
+                        target.classList.remove('drag-over-bottom');
+                    } else {
+                        target.classList.add('drag-over-bottom');
+                        target.classList.remove('drag-over-top');
+                    }
+                }
+            });
+
+            container.addEventListener('dragleave', (e) => {
+                const target = e.target.closest('.playlist-item');
+                if (target) {
+                    target.classList.remove('drag-over-top', 'drag-over-bottom');
+                }
+            });
+
+            container.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const target = e.target.closest('.playlist-item');
+                if (target && draggedIndex !== null) {
+                    target.classList.remove('drag-over-top', 'drag-over-bottom');
+                    const targetIndex = parseInt(target.dataset.index, 10);
+                    
+                    const rect = target.getBoundingClientRect();
+                    const offset = e.clientY - rect.top - (rect.height / 2);
+                    const insertBefore = offset < 0;
+
+                    // Reorder playlist array
+                    const [draggedItem] = playlist.splice(draggedIndex, 1);
+                    
+                    if (insertBefore) {
+                        playlist.splice(targetIndex, 0, draggedItem);
+                    } else {
+                        playlist.splice(targetIndex + 1, 0, draggedItem);
+                    }
+
+                    updatePlaylistUI();
+                }
+            });
         }
 
         // Click outside modal to close
