@@ -14,6 +14,7 @@
             <button class="control-btn" onclick="exportSession()">💾 Export</button>
             <button class="control-btn" onclick="document.getElementById('importSession').click()">📁 Import</button>
             <input type="file" id="importSession" accept=".json" style="display:none" onchange="importSession(event)">
+            <button class="control-btn" id="togglePlaylistBtn">🎹 Playlist</button>
         </header>
 
         <main class="main-content">
@@ -187,11 +188,17 @@
             </div>
         </main>
 
-        <div class="playlist" id="playlist">
-            <h3>Playlist</h3>
-            <div id="playlistItems"></div>
-            <button class="control-btn" onclick="document.getElementById('addToPlaylist').click()" style="margin-top: 10px;">➕ Add Tracks</button>
-            <input type="file" id="addToPlaylist" multiple accept="audio/*" style="display:none" onchange="addToPlaylist(this.files)">
+        <div class="playlist-container">
+            <div class="playlist" id="playlist">
+                <h3>Playlist</h3>
+                <div id="playlistItems"></div>
+                <div class="playlist-controls">
+                    <button class="control-btn" onclick="document.getElementById('addTracksInput').click()">➕ Add Tracks</button>
+                    <input type="file" id="addTracksInput" multiple accept="audio/*" style="display:none" onchange="addToPlaylist(this.files)">
+                    <button class="control-btn" onclick="document.getElementById('addFolderInput').click()">📂 Add Folder</button>
+                    <input type="file" id="addFolderInput" multiple accept="audio/*" style="display:none" onchange="addToPlaylist(this.files)" webkitdirectory>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -210,6 +217,14 @@
             <div style="margin: 20px 0;">
                 <label>Audio Latency (ms):</label>
                 <input type="number" id="audioLatency" value="20" min="0" max="100" onchange="setAudioLatency(this.value)">
+            </div>
+            <div style="margin: 20px 0;">
+                <label>Tempo Range:</label>
+                <select id="tempoRange" onchange="setTempoRange(this.value)">
+                    <option value="8">±8%</option>
+                    <option value="16" selected>±16%</option>
+                    <option value="50">±50%</option>
+                </select>
             </div>
             <div style="margin: 20px 0;">
                 <label>Theme:</label>
