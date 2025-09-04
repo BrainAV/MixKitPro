@@ -37,12 +37,24 @@
 
                 <div class="bpm-display" id="bpmA">BPM: --</div>
 
-                <div class="controls">
-                    <button class="control-btn" id="playA" onclick="togglePlay('A')">▶️ Play</button>
-                    <button class="control-btn" onclick="stop('A')">⏹️ Stop</button>
-                    <button class="control-btn" id="loopA" onclick="toggleLoop('A')">🔄 Loop</button>
-                    <button class="control-btn" id="syncA" onclick="syncTempo('A')">🔗 Sync</button>
-                    <button class="control-btn" id="keylockA" onclick="toggleKeylock('A')">🔒 Key Lock</button>
+                <div class="controls-vu-container">
+                    <div class="controls">
+                        <button class="control-btn" id="playA" onclick="togglePlay('A')">▶️ Play</button>
+                        <button class="control-btn" onclick="stop('A')">⏹️ Stop</button>
+                        <button class="control-btn" id="loopA" onclick="toggleLoop('A')">🔄 Loop</button>
+                        <button class="control-btn" id="syncA" onclick="syncTempo('A')">🔗 Sync</button>
+                        <button class="control-btn" id="keylockA" onclick="toggleKeylock('A')">🔒 Key Lock</button>
+                    </div>
+                    <div class="vu-meter-stereo" id="vuMeterA">
+                        <div class="vu-channel">
+                            <div class="vu-bar-stereo" id="vuBarAL"></div>
+                            <div class="vu-label">L</div>
+                        </div>
+                        <div class="vu-channel">
+                            <div class="vu-bar-stereo" id="vuBarAR"></div>
+                            <div class="vu-label">R</div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="progress-container" id="progressA" onclick="seek('A', event)">
@@ -81,16 +93,6 @@
                     </div>
                 </div>
 
-                <div class="vu-meter-stereo" id="vuMeterA">
-                    <div class="vu-channel">
-                        <div class="vu-bar-stereo" id="vuBarAL"></div>
-                        <div class="vu-label">L</div>
-                    </div>
-                    <div class="vu-channel">
-                        <div class="vu-bar-stereo" id="vuBarAR"></div>
-                        <div class="vu-label">R</div>
-                    </div>
-                </div>
             </div>
 
             <!-- Mixer -->
@@ -131,12 +133,24 @@
 
                 <div class="bpm-display" id="bpmB">BPM: --</div>
 
-                <div class="controls">
-                    <button class="control-btn" id="playB" onclick="togglePlay('B')">▶️ Play</button>
-                    <button class="control-btn" onclick="stop('B')">⏹️ Stop</button>
-                    <button class="control-btn" id="loopB" onclick="toggleLoop('B')">🔄 Loop</button>
-                    <button class="control-btn" id="syncB" onclick="syncTempo('B')">🔗 Sync</button>
-                    <button class="control-btn" id="keylockB" onclick="toggleKeylock('B')">🔒 Key Lock</button>
+                <div class="controls-vu-container">
+                    <div class="controls">
+                        <button class="control-btn" id="playB" onclick="togglePlay('B')">▶️ Play</button>
+                        <button class="control-btn" onclick="stop('B')">⏹️ Stop</button>
+                        <button class="control-btn" id="loopB" onclick="toggleLoop('B')">🔄 Loop</button>
+                        <button class="control-btn" id="syncB" onclick="syncTempo('B')">🔗 Sync</button>
+                        <button class="control-btn" id="keylockB" onclick="toggleKeylock('B')">🔒 Key Lock</button>
+                    </div>
+                    <div class="vu-meter-stereo" id="vuMeterB">
+                        <div class="vu-channel">
+                            <div class="vu-bar-stereo" id="vuBarBL"></div>
+                            <div class="vu-label">L</div>
+                        </div>
+                        <div class="vu-channel">
+                            <div class="vu-bar-stereo" id="vuBarBR"></div>
+                            <div class="vu-label">R</div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="progress-container" id="progressB" onclick="seek('B', event)">
@@ -175,16 +189,6 @@
                     </div>
                 </div>
 
-                <div class="vu-meter-stereo" id="vuMeterB">
-                    <div class="vu-channel">
-                        <div class="vu-bar-stereo" id="vuBarBL"></div>
-                        <div class="vu-label">L</div>
-                    </div>
-                    <div class="vu-channel">
-                        <div class="vu-bar-stereo" id="vuBarBR"></div>
-                        <div class="vu-label">R</div>
-                    </div>
-                </div>
             </div>
         </main>
 
