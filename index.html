@@ -115,13 +115,16 @@
                 <button class="control-btn" onclick="toggleAutomix()">🤖 Automix</button>
 
                 <div class="deck-volume-controls">
-                    <div class="slider-container vertical">
-                        <label>Volume A</label>
-                        <input type="range" class="slider" id="volumeA" min="0" max="100" value="75" oninput="setVolume('A', this.value)">
-                    </div>
-                    <div class="slider-container vertical">
-                        <label>Volume B</label>
-                        <input type="range" class="slider" id="volumeB" min="0" max="100" value="75" oninput="setVolume('B', this.value)">
+                    <label>Volume</label>
+                    <div class="deck-volume-sliders">
+                        <div class="slider-container vertical">
+                            <input type="range" class="slider" id="volumeA" min="0" max="100" value="75" oninput="setVolume('A', this.value)">
+                            <label>A</label>
+                        </div>
+                        <div class="slider-container vertical">
+                            <input type="range" class="slider" id="volumeB" min="0" max="100" value="75" oninput="setVolume('B', this.value)">
+                            <label>B</label>
+                        </div>
                     </div>
                 </div>
 

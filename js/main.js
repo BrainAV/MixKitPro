@@ -728,7 +728,6 @@ class Deck {
         function setMasterVolume(value) {
             masterGain.gain.value = value / 100;
             updateMasterVolumeKnobUI(value / 100);
-            saveSettings();
         }
 
         function updateMasterVolumeKnobUI(value) {
@@ -833,6 +832,7 @@ class Deck {
 
             if (activeKnob.type === 'master') {
                 setMasterVolume(value * 100);
+                saveSettings();
             } else {
                 activeKnob.deck.toggleEffect(activeKnob.effect, value);
             }
