@@ -1125,7 +1125,9 @@ class Deck {
                 document.getElementById('tempoRange').value = settings.tempoRange;
             }
 
-            if (settings.playlistCollapsed) {
+            if (settings.playlistCollapsed === false) {
+                document.querySelector('.playlist-container').classList.remove('collapsed');
+            } else if (settings.playlistCollapsed) {
                 document.querySelector('.playlist-container').classList.add('collapsed');
             }
 
