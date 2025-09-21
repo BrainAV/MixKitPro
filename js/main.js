@@ -1156,6 +1156,12 @@ class Deck {
             }
         }
 
+        function closePlaylist() {
+            const container = document.querySelector('.playlist-container');
+            container.classList.add('collapsed');
+            saveSettings();
+        }
+
         function togglePlaylist() {
             const container = document.querySelector('.playlist-container');
             container.classList.toggle('collapsed');
