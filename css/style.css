@@ -278,6 +278,10 @@
             width: 100px;
         }
 
+        .slider-container.vertical > label {
+            margin-top: 15px;
+        }
+
         .mixer {
             background: var(--deck-bg);
             border-radius: 15px;
@@ -330,7 +334,7 @@
             width: 80%;
             flex: 1;
             background: #222;
-            border-radius: 5px;
+            border-radius: 2px;
             position: relative;
             overflow: hidden;
             border: 1px solid rgba(0,0,0,0.5);
@@ -343,7 +347,7 @@
             left: 0;
             width: 100%;
             height: var(--vu-level, 0%);
-            background: linear-gradient(to top, #4ecdc4, #ff6b6b, #f0e68c);
+            background: linear-gradient(to top, #00ff00 0%, #00ff00 60%, #ffff00 60%, #ffff00 85%, #ff0000 85%, #ff0000 100%);
             transition: height 0.05s linear;
         }
 
