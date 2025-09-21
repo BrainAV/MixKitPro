@@ -583,18 +583,17 @@ class Deck {
             }
         });
 
-        function updateBar(barElement, level) {
-            if (!barElement) return;
-
+        function updateBar(bar, level) {
+            if (!bar) return;
             const heightPercent = Math.min(level * 100, 100);
-            barElement.style.setProperty('--vu-level', `${heightPercent}%`);
+            bar.style.height = `${heightPercent}%`;
 
-            if (level > 0.9) { // Red threshold (changed from 0.8 to 0.9 for better visual)
-                barElement.dataset.level = 'red';
-            } else if (level > 0.4) { // Yellow threshold (changed from 0.3 to 0.4)
-                barElement.dataset.level = 'yellow';
+            if (level > 0.9) {
+                bar.className = 'vu-bar red';
+            } else if (level > 0.4) {
+                bar.className = 'vu-bar yellow';
             } else {
-                barElement.dataset.level = 'green';
+                bar.className = 'vu-bar';
             }
         }
 
