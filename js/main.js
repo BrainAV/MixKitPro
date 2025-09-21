@@ -368,10 +368,10 @@ class Deck {
                 const barR = document.getElementById(`vuBar${this.id}R`);
 
                 if (barL) {
-                    barL.style.setProperty('--vu-level', `${Math.min(peakL * 100, 100)}%`);
+                    barL.style.setProperty('--vu-level', `${Math.min(peakL * 1.5 * 100, 100)}%`);
                 }
                 if (barR) {
-                    barR.style.setProperty('--vu-level', `${Math.min(peakR * 100, 100)}%`);
+                    barR.style.setProperty('--vu-level', `${Math.min(peakR * 1.5 * 100, 100)}%`);
                 }
             }
 
@@ -649,10 +649,10 @@ class Deck {
             const barR = document.getElementById('vuBarMasterR');
 
             if (barL) {
-                barL.style.setProperty('--vu-level', `${Math.min(peakL * 100, 100)}%`);
+                barL.style.setProperty('--vu-level', `${Math.min(peakL * 1.5 * 100, 100)}%`);
             }
             if (barR) {
-                barR.style.setProperty('--vu-level', `${Math.min(peakR * 100, 100)}%`);
+                barR.style.setProperty('--vu-level', `${Math.min(peakR * 1.5 * 100, 100)}%`);
             }
         }
 
