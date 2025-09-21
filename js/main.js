@@ -367,12 +367,8 @@ class Deck {
                 const barL = document.getElementById(`vuBar${this.id}L`);
                 const barR = document.getElementById(`vuBar${this.id}R`);
 
-                if (barL) {
-                    barL.style.setProperty('--vu-level', `${Math.min(peakL * 1.5 * 100, 100)}%`);
-                }
-                if (barR) {
-                    barR.style.setProperty('--vu-level', `${Math.min(peakR * 1.5 * 100, 100)}%`);
-                }
+                updateBar(barL, peakL);
+                updateBar(barR, peakR);
             }
 
             play(startTimeOverride) {
@@ -587,6 +583,20 @@ class Deck {
             }
         });
 
+        function updateBar(bar, level) {
+            if (!bar) return;
+            const heightPercent = Math.min(level * 100, 100);
+            bar.style.height = `${heightPercent}%`;
+
+            if (level > 0.9) {
+                bar.className = 'vu-bar red';
+            } else if (level > 0.4) {
+                bar.className = 'vu-bar yellow';
+            } else {
+                bar.className = 'vu-bar';
+            }
+        }
+
         function setupSpectrum() {
             spectrumAnalyser = audioContext.createAnalyser();
             spectrumAnalyser.fftSize = 256;
@@ -648,12 +658,8 @@ class Deck {
             const barL = document.getElementById('vuBarMasterL');
             const barR = document.getElementById('vuBarMasterR');
 
-            if (barL) {
-                barL.style.setProperty('--vu-level', `${Math.min(peakL * 1.5 * 100, 100)}%`);
-            }
-            if (barR) {
-                barR.style.setProperty('--vu-level', `${Math.min(peakR * 1.5 * 100, 100)}%`);
-            }
+            updateBar(barL, peakL);
+            updateBar(barR, peakR);
         }
 
         function startUpdateLoop() {
