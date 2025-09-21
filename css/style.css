@@ -277,6 +277,9 @@
             transform: rotate(270deg);
             width: 100px;
         }
+        .slider-container.vertical > label {
+            margin-top: 15px;
+        }
 
         .mixer {
             background: var(--deck-bg);
