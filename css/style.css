@@ -252,6 +252,24 @@
             box-shadow: 0 0 10px var(--highlight-color);
         }
 
+        .deck-volume-controls {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+
+        .slider-container.vertical {
+            height: 150px;
+            justify-content: center;
+        }
+
+        .slider-container.vertical .slider {
+            transform: rotate(270deg);
+            width: 100px;
+        }
+
         .mixer {
             background: var(--deck-bg);
             border-radius: 15px;

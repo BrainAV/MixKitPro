@@ -68,11 +68,6 @@
                 </div>
 
                 <div class="slider-container">
-                    <label>Volume</label>
-                    <input type="range" class="slider" id="volumeA" min="0" max="100" value="75" oninput="setVolume('A', this.value)">
-                </div>
-
-                <div class="slider-container">
                     <label>Tempo ±16%</label>
                     <input type="range" class="slider" id="tempoA" min="-16" max="16" value="0" step="0.01" oninput="setTempo('A', this.value)">
                     <span id="tempoValueA">0.00%</span>
@@ -100,6 +95,17 @@
                 <div class="slider-container">
                     <label>Master Volume</label>
                     <input type="range" class="slider" id="masterVolume" min="0" max="100" value="75" oninput="setMasterVolume(this.value)">
+                </div>
+
+                <div class="deck-volume-controls">
+                    <div class="slider-container vertical">
+                        <label>Volume A</label>
+                        <input type="range" class="slider" id="volumeA" min="0" max="100" value="75" oninput="setVolume('A', this.value)">
+                    </div>
+                    <div class="slider-container vertical">
+                        <label>Volume B</label>
+                        <input type="range" class="slider" id="volumeB" min="0" max="100" value="75" oninput="setVolume('B', this.value)">
+                    </div>
                 </div>
 
                 <div class="crossfader-container">
@@ -172,11 +178,6 @@
 
                 <div class="waveform">
                     <canvas class="waveform-canvas" id="waveformB"></canvas>
-                </div>
-
-                <div class="slider-container">
-                    <label>Volume</label>
-                    <input type="range" class="slider" id="volumeB" min="0" max="100" value="75" oninput="setVolume('B', this.value)">
                 </div>
 
                 <div class="slider-container">
