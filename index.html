@@ -92,25 +92,9 @@
 
             <!-- Mixer -->
             <div class="mixer">
-                <div class="slider-container">
+                <div class="effect-control">
+                    <div id="masterVolumeKnob" class="effect-knob" onmousedown="startKnobTurn(event, 'master', 'volume')"></div>
                     <label>Master Volume</label>
-                    <input type="range" class="slider" id="masterVolume" min="0" max="100" value="75" oninput="setMasterVolume(this.value)">
-                </div>
-
-                <div class="deck-volume-controls">
-                    <div class="slider-container vertical">
-                        <label>Volume A</label>
-                        <input type="range" class="slider" id="volumeA" min="0" max="100" value="75" oninput="setVolume('A', this.value)">
-                    </div>
-                    <div class="slider-container vertical">
-                        <label>Volume B</label>
-                        <input type="range" class="slider" id="volumeB" min="0" max="100" value="75" oninput="setVolume('B', this.value)">
-                    </div>
-                </div>
-
-                <div class="crossfader-container">
-                    <label>Crossfader</label>
-                    <input type="range" class="crossfader slider" id="crossfader" min="0" max="100" value="50" oninput="setCrossfader(this.value)">
                 </div>
 
                 <div class="spectrum">
@@ -129,6 +113,25 @@
                 </div>
 
                 <button class="control-btn" onclick="toggleAutomix()">🤖 Automix</button>
+
+                <div class="deck-volume-controls">
+                    <label>Volume</label>
+                    <div class="deck-volume-sliders">
+                        <div class="slider-container vertical">
+                            <input type="range" class="slider" id="volumeA" min="0" max="100" value="75" oninput="setVolume('A', this.value)">
+                            <label>A</label>
+                        </div>
+                        <div class="slider-container vertical">
+                            <input type="range" class="slider" id="volumeB" min="0" max="100" value="75" oninput="setVolume('B', this.value)">
+                            <label>B</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="crossfader-container">
+                    <label>Crossfader</label>
+                    <input type="range" class="crossfader slider" id="crossfader" min="0" max="100" value="50" oninput="setCrossfader(this.value)">
+                </div>
             </div>
 
             <!-- Deck B -->

@@ -727,7 +727,15 @@ class Deck {
 
         function setMasterVolume(value) {
             masterGain.gain.value = value / 100;
-            saveSettings();
+            updateMasterVolumeKnobUI(value / 100);
+        }
+
+        function updateMasterVolumeKnobUI(value) {
+            const knob = document.getElementById('masterVolumeKnob');
+            if (knob) {
+                const rotation = -135 + (value * 270); // -135 to 135 degrees
+                knob.style.transform = `rotate(${rotation}deg)`;
+            }
         }
 
         function setCrossfader(value) {
@@ -774,6 +782,7 @@ class Deck {
 
         // Knob turning logic
         let activeKnob = {
+            type: null, // 'effect' or 'master'
             deck: null,
             effect: null,
             element: null,
@@ -781,26 +790,32 @@ class Deck {
             initialValue: 0,
         };
 
-        function startKnobTurn(event, deckId, effect) {
+        function startKnobTurn(event, type, parameter) {
             event.preventDefault();
-            const deck = deckId === 'A' ? deckA : deckB;
-
-            activeKnob.deck = deck;
-            activeKnob.effect = effect;
             activeKnob.element = event.target;
             activeKnob.initialY = event.clientY;
-            activeKnob.initialValue = deck.effects[effect].value;
 
-            // Toggle active state on simple click without drag
-            if (event.detail === 1) {
-                const wasActive = deck.effects[effect].active;
-                // A small timeout to differentiate from a drag
-                setTimeout(() => {
-                    if (activeKnob.element && Math.abs(event.clientY - activeKnob.initialY) < 5) {
-                       deck.effects[effect].active = !wasActive;
-                       deck.toggleEffect(effect);
-                    }
-                }, 200);
+            if (type === 'master') {
+                activeKnob.type = 'master';
+                activeKnob.initialValue = masterGain.gain.value;
+            } else {
+                const deck = type === 'A' ? deckA : deckB;
+                activeKnob.type = 'effect';
+                activeKnob.deck = deck;
+                activeKnob.effect = parameter;
+                activeKnob.initialValue = deck.effects[parameter].value;
+
+                // Toggle active state on simple click without drag
+                if (event.detail === 1) {
+                    const wasActive = deck.effects[parameter].active;
+                    // A small timeout to differentiate from a drag
+                    setTimeout(() => {
+                        if (activeKnob.element && Math.abs(event.clientY - activeKnob.initialY) < 5) {
+                           deck.effects[parameter].active = !wasActive;
+                           deck.toggleEffect(parameter);
+                        }
+                    }, 200);
+                }
             }
 
             window.addEventListener('mousemove', handleKnobTurn);
@@ -815,11 +830,17 @@ class Deck {
             let value = activeKnob.initialValue + dy * sensitivity;
             value = Math.max(0, Math.min(1, value)); // clamp between 0 and 1
 
-            activeKnob.deck.toggleEffect(activeKnob.effect, value);
+            if (activeKnob.type === 'master') {
+                setMasterVolume(value * 100);
+                saveSettings();
+            } else {
+                activeKnob.deck.toggleEffect(activeKnob.effect, value);
+            }
         }
 
         function endKnobTurn(event) {
             activeKnob.element = null;
+            activeKnob.type = null;
             window.removeEventListener('mousemove', handleKnobTurn);
             window.removeEventListener('mouseup', endKnobTurn);
         }
@@ -1011,7 +1032,7 @@ class Deck {
                     keylock: deckB.keylock,
                     effects: deckB.effects
                 },
-                masterVolume: document.getElementById('masterVolume').value,
+                masterVolume: masterGain.gain.value * 100,
                 crossfader: document.getElementById('crossfader').value,
                 playlist: playlist.map(item => ({ name: item.name }))
             };
@@ -1038,7 +1059,6 @@ class Deck {
                         document.getElementById('volumeB').value = session.deckB.volume;
                         document.getElementById('tempoA').value = session.deckA.tempo;
                         document.getElementById('tempoB').value = session.deckB.tempo;
-                        document.getElementById('masterVolume').value = session.masterVolume;
                         document.getElementById('crossfader').value = session.crossfader;
 
                         setVolume('A', session.deckA.volume);
@@ -1095,7 +1115,7 @@ class Deck {
                     keylock: deckB.keylock,
                     effects: deckB.effects
                 },
-                masterVolume: document.getElementById('masterVolume').value,
+                masterVolume: masterGain.gain.value * 100,
                 crossfader: document.getElementById('crossfader').value,
                 crossfaderCurve: document.getElementById('crossfaderCurve').value,
                 theme: document.getElementById('theme').value,
@@ -1111,7 +1131,6 @@ class Deck {
 
             // Restore Mixer
             setMasterVolume(settings.masterVolume);
-            document.getElementById('masterVolume').value = settings.masterVolume;
             setCrossfader(settings.crossfader);
             document.getElementById('crossfader').value = settings.crossfader;
 

@@ -254,6 +254,14 @@
 
         .deck-volume-controls {
             display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+            width: 100%;
+        }
+
+        .deck-volume-sliders {
+            display: flex;
             gap: 40px;
             justify-content: center;
             align-items: center;
