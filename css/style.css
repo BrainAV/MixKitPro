@@ -336,22 +336,21 @@
             border: 1px solid rgba(0,0,0,0.5);
         }
 
-        .vu-bar-stereo::after {
-            content: '';
+        .vu-bar {
             position: absolute;
             bottom: 0;
             left: 0;
             width: 100%;
-            height: var(--vu-level, 0%);
+            height: 0%;
             background-color: green;
             transition: height 0.05s ease-out, background-color 0.05s;
         }
 
-        .vu-bar-stereo[data-level="yellow"]::after {
+        .vu-bar.yellow {
             background-color: yellow;
         }
 
-        .vu-bar-stereo[data-level="red"]::after {
+        .vu-bar.red {
             background-color: red;
         }
 
